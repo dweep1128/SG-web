@@ -4,6 +4,7 @@
 
 1. Copy `.env.example` to `.env.local` and add the Supabase URL, publishable key and WhatsApp number.
 2. In Supabase, open **SQL Editor**, paste and run [`supabase/schema.sql`](./supabase/schema.sql).
+   - If the site already has the starter schema, run [`supabase/photo-identification.sql`](./supabase/photo-identification.sql) as well to enable the private part-photo enquiry flow.
 3. Add products, images and compatibility data through Supabase Table Editor (or the admin page after assigning your account the `admin` role).
 4. Run `npm install` then `npm run dev`.
 
