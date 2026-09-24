@@ -58,3 +58,14 @@ export function partHref(code: number): string {
 }
 
 export { categoryLabel };
+
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [["day", 86_400_000], ["hour", 3_600_000], ["minute", 60_000]];
+
+// "Updated 12 minutes ago". Rendered on the server at request/revalidate time, so it can lag by ≤ the cache window.
+export function updatedAgo(iso: string, now: number): string {
+  const diff = new Date(iso).getTime() - now;
+  if (Math.abs(diff) < 60_000) return "Updated just now";
+  const [unit, ms] = UNITS.find(([, ms]) => Math.abs(diff) >= ms)!;
+  return `Updated ${rtf.format(Math.round(diff / ms), unit)}`;
+}

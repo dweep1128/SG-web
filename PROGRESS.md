@@ -5,7 +5,7 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
 - [x] Phase 0 — recover: install, ESLint configured (flat config, pinned), lint + build green, old-session work committed as baseline
 - [x] Phase 1 — data layer: paged RPC fetch (1417 rows), unstable_cache 300s, lean `Part` (no qty/cost), draft classifier, <PartImage>, Cloudinary-only remotePatterns, old routes removed
 - [x] Phase 2 — design system: tokens (circuit green + volt), Big Shoulders / Figtree / JetBrains Mono, components/ui.tsx (Button, ButtonLink, ExternalButton, Badge, StockBadge, CodeTag, Input, Textarea, Card, Skeleton, EmptyState), components/toast.tsx. All token text pairs ≥ 5.4:1
-- [ ] Phase 3 — pages (header, home, /parts, /parts/[code], /quote, 404, loading, errors, /about)
+- [x] Phase 3 — pages: sticky header (logo, search, categories <details> menu, live quote count), home (hero + search + value line, category tiles, popular parts, WhatsApp strip), /parts (category chips, in-stock toggle, sort, 24/page pagination, all URL-synced), /parts/[code] (ISR), /quote (localStorage, cross-tab sync, WhatsApp send), /about [FILL], 404, loading + error per route, global-error, /products → /parts 301
 - [ ] Phase 4 — search (fuzzy, header dropdown, /search, lib/search-aliases.ts)
 - [ ] Phase 5 — polish (SEO, sitemap, robots, a11y, perf)
 - [ ] Phase 6 — final check (build, console, bundle grep, 375/1440, WhatsApp with 3 items)
@@ -26,6 +26,15 @@ busy_group_name, price, stock_status, stock_qty, stock_synced_at — no cost/D4 
 - Categories: 14 draft buckets (lib/categories.ts). Distribution: body 441, brakes 155, controls 121, wiring 119, hardware 111, lights 109, meters 84, other 69, motors 54, suspension 47, chargers 36, controllers 25, wheels 23, batteries 23.
 - Non-parts still in the live catalog (candidates for scripts/busy-sync/catalog-exclusions.json — not edited): ASUS LAPTOP, PRINTER TSC 244 PRO, LLOYD SAC (AC), 32 INCH LED TV, WALL FAN, MUSIC SYSTEM, VACCUM FLASK STEEL, HELMET/HELMENT ×3, E SCOOTER G3, E SCOOTER MAGIC, ELECTRIC SCOOTY, BICYCLE KIT 36 VOLT.
 - Design: dominant #0b6e4f circuit green, accent #d8ff3e volt (only on dark / as fill behind ink). Display font Big Shoulders (condensed industrial), body Figtree, codes JetBrains Mono. Next has no fallback metrics for Big Shoulders → small heading reflow on first font load (ceiling: add a size-adjusted @font-face fallback).
+- Header quote badge counts distinct parts, not total qty (50 bolts ≠ "50").
+- Pagination (numbered, URL `?page=`) instead of load-more: shareable + server-rendered, only 24 cards in the HTML.
+- "Popular parts" = priced + in-stock, one per category round-robin (no sales data yet). Swap for a hand-picked list later.
+- Card has a one-tap "+" (qty 1) quick-add in addition to the detail page stepper; both show a toast.
+- Quote page shows an **indicative subtotal** of priced lines (+ GST, "N on request"). Prices are snapshotted when added.
+- Quote form: name + phone required (phone pattern `[+]?[0-9 ]{10,15}`), notes optional. Contact fields are NOT persisted.
+- Quote is NOT cleared after sending (user may need to resend); explicit "Clear quote" button instead.
+- Detail pages render on first request then cache 300s (ISR); none prebuilt at build time.
+- Error pages never show `error.message` to shoppers; only the digest ref.
 
 ## Decisions (resolved 2026-09-24)
 

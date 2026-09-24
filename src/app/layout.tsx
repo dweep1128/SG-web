@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Big_Shoulders, Figtree, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/toast";
 import { SITE } from "@/lib/site";
 
@@ -21,7 +23,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en-IN" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body>
-        {children}
+        <a href="#main" className="skip-link">Skip to content</a>
+        <SiteHeader />
+        <main id="main">{children}</main>
+        <SiteFooter />
         <Toaster />
       </body>
     </html>
