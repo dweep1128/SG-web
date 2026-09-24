@@ -38,6 +38,9 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
   catalog fetch failure during `next build` calls connection() → route renders at request time instead of failing the build
   (verified: build with zero env vars passes); `engines.node = 24.x` (= Vercel project); import-path case check (123 imports OK); `npm ci` clean.
 - No photo-upload feature / sku-images.sql exists in this codebase → no Cloudinary/UPLOAD_PIN/service-role vars added.
+- Deployed: https://sg-web-bice.vercel.app (dpl_HbCp6UdnunibiokYr2pdHYkw62cP, READY, build fetched 1417 → 1395 shown). /, /parts, /parts/1340, /quote, /search?q=chager+60v → 200 with real parts; hidden 1296 → 404; robots `Disallow: /` + noindex.
+- [ ] TODO: NEXT_PUBLIC_WHATSAPP_NUMBER on Vercel has no digits (buttons show "not configured") → set real number, redeploy.
+- [ ] TODO (security): Vercel project also holds BUSY_*, BUSY_SQL_*, ALLOW_LIVE_WRITE, PRICE_VERIFIED, STOCK_VERIFIED, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HEALTHCHECK_URL, SYNC_DATA_DIR (added before this session). Site never reads them; recommend deleting from Vercel.
 
 ## Verified 2026-09-24 (REST, publishable key, p_busy_code: null, 1000-row pages)
 
