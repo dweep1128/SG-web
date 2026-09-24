@@ -1,9 +1,29 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Big_Shoulders, Figtree, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@/components/toast";
 import { SITE } from "@/lib/site";
 
-export const metadata: Metadata = { title: SITE.name, description: SITE.description };
+const display = Big_Shoulders({ subsets: ["latin"], axes: ["opsz"], variable: "--font-shoulders", display: "swap", adjustFontFallback: false });
+const body = Figtree({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-figtree", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["500"], variable: "--font-jetbrains", display: "swap" });
+
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE.url),
+  title: { default: `${SITE.name} — ${SITE.tagline}`, template: `%s | ${SITE.name}` },
+  description: SITE.description,
+  openGraph: { siteName: SITE.name, type: "website", locale: "en_IN" },
+};
+
+export const viewport: Viewport = { themeColor: "#0b6e4f" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return (
+    <html lang="en-IN" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+      <body>
+        {children}
+        <Toaster />
+      </body>
+    </html>
+  );
 }
