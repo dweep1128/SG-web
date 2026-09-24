@@ -1,7 +1,10 @@
-// Pure types + helpers shared by server pages and client components. No server-only imports here —
-// anything that touches Supabase belongs in lib/catalog.ts instead, or client components pull in
-// next/headers transitively and the build breaks.
-export type CatalogItem = {
+// Pure types + helpers shared by server pages and client components. No server-only imports here.
+import { categoryLabel, type CategorySlug } from "./categories";
+import { PRICE_INCLUDES_GST } from "./site";
+
+// Row shape of public.public_catalog_list(p_busy_code) — see supabase/busy-catalog-list.sql.
+// Server-only: stock_qty is used to derive the stock label and then dropped.
+export type CatalogRow = {
   busy_code: number;
   busy_name: string;
   hsn_code: string | null;
@@ -11,37 +14,47 @@ export type CatalogItem = {
   price: number | null;
   stock_status: "in_stock" | "ask" | null;
   stock_qty: number | null;
+  stock_synced_at: string | null;
 };
 
-// ponytail: arbitrary demo default — confirm the real "low stock" cutoff with Dweep before launch.
-const LOW_STOCK_THRESHOLD = 10;
+export type StockState = "in" | "low" | "ask";
 
-export type StockLabel = "In stock" | "Low stock" | "Check availability";
-export function stockLabel(item: Pick<CatalogItem, "stock_status" | "stock_qty">): StockLabel {
-  if (item.stock_status === "in_stock") return (item.stock_qty ?? 0) <= LOW_STOCK_THRESHOLD ? "Low stock" : "In stock";
-  return "Check availability";
-}
+// Lean public shape. Deliberately has no quantity and no cost field of any kind.
+export type Part = {
+  code: number;
+  name: string;
+  price: number | null; // null = hidden by visibility flag or zero in BUSY → "Price on request"
+  gst: number | null;
+  hsn: string | null;
+  unit: string | null;
+  stock: StockState;
+  cat: CategorySlug;
+  syncedAt: string | null;
+  imageUrl: string | null; // always null until Cloudinary photos land
+};
+
+export const STOCK_LABEL: Record<StockState, string> = {
+  in: "In stock",
+  low: "Low stock",
+  ask: "Check availability",
+};
+
+const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 export function formatPrice(price: number | null): string {
-  if (!price) return "Price on request";
-  return `₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(price)}`;
+  return price == null ? "Price on request" : inr.format(price);
 }
 
-export type CategoryCount = { name: string; count: number };
-export function catalogGroups(items: CatalogItem[]): CategoryCount[] {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const name = item.busy_group_name || "Other";
-    counts.set(name, (counts.get(name) ?? 0) + 1);
-  }
-  return [...counts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+export const GST_NOTE = PRICE_INCLUDES_GST ? "incl. GST" : "+ GST";
+
+// Price the dealer actually pays, for the detail page. Only meaningful when prices exclude GST.
+export function priceWithGst(part: Pick<Part, "price" | "gst">): number | null {
+  if (part.price == null || part.gst == null || PRICE_INCLUDES_GST) return null;
+  return Math.round(part.price * (1 + part.gst / 100) * 100) / 100;
 }
 
-export function filterCatalogItems(items: CatalogItem[], { query, group }: { query?: string; group?: string }): CatalogItem[] {
-  const q = query?.trim().toLowerCase();
-  return items.filter((item) => {
-    if (group && item.busy_group_name !== group) return false;
-    if (q && !item.busy_name.toLowerCase().includes(q)) return false;
-    return true;
-  });
+export function partHref(code: number): string {
+  return `/parts/${code}`;
 }
+
+export { categoryLabel };
