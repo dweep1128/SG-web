@@ -1,0 +1,23 @@
+{
+  "note": "Column fingerprints (sha256 of 'name:DATA_TYPE' lines in ordinal order) from the 2026-09-17 discovery run (docs/busy-schema-report.md). Names are not stored here on purpose. If BUSY is upgraded and the sync stops with SCHEMA_CHANGED, re-check the columns the sync uses, then update these values from local-data/busy-schema-observed.json.",
+  "busy_db": "BusyComp0003_db12026",
+  "captured_at": "2026-09-17",
+  "tables": {
+    "Folio1": {
+      "columns": 164,
+      "sha256": "7b9911a9cd2722dab0d74a32cb184fdc4ca9134e0725401b46ff5f512d5becdd"
+    },
+    "Master1": {
+      "columns": 156,
+      "sha256": "94aa45d0f57051ba52cd32da33a9904fee845a7abc8f29a7b0f1727a92449258"
+    },
+    "MasterSupport": {
+      "columns": 51,
+      "sha256": "d76f70b5ad853a78b4e54bd65e77aff406053a71e76c399189f95e7d35f3adf1"
+    },
+    "Tran2": {
+      "columns": 105,
+      "sha256": "b4328584dc734729e20e59055e818fb200f38e90149dc719269fba9a82978aab"
+    }
+  }
+}

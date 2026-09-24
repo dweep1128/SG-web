@@ -1,11 +1,38 @@
 "use client";
 import Link from "next/link";
-import { Product } from "@/lib/types";
+import { CatalogItem, formatPrice, stockLabel } from "@/lib/catalog-types";
 import { useQuoteCart } from "./site-chrome";
 
-function stockLabel(stock: Product["stock"]) { return stock === "in_stock" ? "In stock" : stock === "limited" ? "Limited stock" : "Out of stock"; }
-export function ProductCard({ product }: { product: Product }) {
-  const { add } = useQuoteCart(); const image = product.product_images?.[0]; const fits = product.product_compatibility?.map(entry => entry.scooter_models ? `${entry.scooter_models.brand} ${entry.scooter_models.model}` : null).filter(Boolean).slice(0, 2).join(", ");
-  const price = product.price_from ? `From ₹${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(product.price_from)}` : "Request dealer price";
-  return <article className="product-card"><Link className="product-img" href={`/products/${product.slug}`}><span className={`stock ${product.stock === "limited" ? "limited" : product.stock === "out_of_stock" ? "out" : ""}`}>{stockLabel(product.stock)}</span>{image ? <img src={image.image_url} alt={image.alt_text || product.name}/> : <span className="product-placeholder"><b>SK</b><small>PRODUCT IMAGE<br/>COMING SOON</small></span>}</Link><p className="sku">{product.sku}</p><Link href={`/products/${product.slug}`}><h3>{product.name}</h3></Link><div className="product-commercial"><b>{price}</b><span>MOQ: {product.moq}</span></div><p className="meta">{product.voltage || "Specification on request"}</p>{fits && <p className="fits">Fits: {fits}</p>}<button className="add-btn" disabled={product.stock === "out_of_stock"} onClick={() => add({ product_id: product.id, name: product.name, sku: product.sku })}>{product.stock === "out_of_stock" ? "Enquire for availability" : "Add to bulk quote +"}</button></article>;
+const BADGE_CLASS: Record<ReturnType<typeof stockLabel>, string> = { "In stock": "in", "Low stock": "low", "Check availability": "hold" };
+
+export function ProductCard({ item, index = 0 }: { item: CatalogItem; index?: number }) {
+  const { add } = useQuoteCart();
+  const label = stockLabel(item);
+  const disabled = label === "Check availability" && item.stock_status === null;
+  return (
+    <article className="product-card" style={{ animationDelay: `${Math.min(index, 11) * 45}ms` }}>
+      <Link className="product-img" href={`/products/${item.busy_code}`}>
+        <span className={`stock-badge ${BADGE_CLASS[label]}`}>{label}</span>
+        <span className="product-placeholder">
+          <span className="swatch">SK</span>
+          <small>Photo coming soon</small>
+        </span>
+      </Link>
+      <p className="hsn">HSN {item.hsn_code || "—"}</p>
+      <Link href={`/products/${item.busy_code}`}>
+        <h3>{item.busy_name}</h3>
+      </Link>
+      <div className="product-commercial">
+        <b>{formatPrice(item.price)}</b>
+        <span>{item.unit_name || "unit"}</span>
+      </div>
+      <button
+        className="add-btn"
+        disabled={disabled}
+        onClick={() => add({ busy_code: item.busy_code, busy_name: item.busy_name, price: item.price })}
+      >
+        {disabled ? "Ask for availability" : "Add to Quote +"}
+      </button>
+    </article>
+  );
 }

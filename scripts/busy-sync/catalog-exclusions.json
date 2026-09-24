@@ -1,0 +1,11 @@
+{
+  "note": "BUSY items that are not sellable parts. Each item sync sets busy_items.exclude_from_catalog = true for these codes and false for every other code; public_catalog_item() never returns them. busy_name must match BUSY exactly (the sync warns if it drifts, e.g. a reused code). Remove a line to put an item back.",
+  "items": [
+    { "busy_code": 1333, "busy_name": "BUSYWIN", "reason": "accounting software licence, not a part (price 0)" },
+    { "busy_code": 1363, "busy_name": "CURRIER CHARGES", "reason": "courier charge line (SAC 9968, price 0)" },
+    { "busy_code": 1364, "busy_name": "CURRIUR CHARGES", "reason": "misspelt duplicate courier charge (already deactivated in BUSY)" },
+    { "busy_code": 1886, "busy_name": "SPACE CHARGES", "reason": "space/rent charge line (SAC 9985, price 0)" },
+    { "busy_code": 3246, "busy_name": "FRIGHT CHARGES", "reason": "freight charge line (SAC 9965, price 0)" },
+    { "busy_code": 1649, "busy_name": "SPARE PARTS OF E SCOOTER (PCS)", "reason": "generic catch-all line, not a specific part (stock 27,346)" }
+  ]
+}
