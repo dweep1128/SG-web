@@ -2,6 +2,7 @@
 // (security definer, explicit columns, active + non-excluded only, no cost fields). Never read busy_items directly.
 import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
+import { connection } from "next/server";
 import { classifyPart } from "./categories";
 import { HIDDEN_CODES } from "./hidden-items";
 import type { CatalogRow, Part, StockState } from "./catalog-types";
@@ -31,7 +32,11 @@ function toPart(row: CatalogRow): Part {
 }
 
 async function fetchAllRows(): Promise<CatalogRow[]> {
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+  // Publishable key under either name (Vercel project uses NEXT_PUBLIC_SUPABASE_ANON_KEY). Never the service role key.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error("Supabase env missing: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const supabase = createClient(url, key, {
     auth: { persistSession: false },
   });
   const rows: CatalogRow[] = [];
@@ -48,7 +53,7 @@ async function fetchAllRows(): Promise<CatalogRow[]> {
   return rows;
 }
 
-export const getParts = unstable_cache(
+const getCachedParts = unstable_cache(
   async (): Promise<Part[]> =>
     (await fetchAllRows())
       .filter((row) => !HIDDEN_CODES.has(row.busy_code))
@@ -57,6 +62,21 @@ export const getParts = unstable_cache(
   ["catalog-parts-v2"], // bumped: the hidden-items filter changes the cached result
   { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
 );
+
+// A catalog outage (or missing env) during `next build` must not fail the deploy: connection() opts the
+// calling route out of static prerendering, so it renders at request time instead. At runtime the error
+// propagates to the route's error boundary as usual. Failures are never cached (unstable_cache skips throws).
+export async function getParts(): Promise<Part[]> {
+  try {
+    return await getCachedParts();
+  } catch (error) {
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      console.warn(`[catalog] unavailable at build time, deferring to request time: ${(error as Error).message}`);
+      await connection();
+    }
+    throw error;
+  }
+}
 
 export async function getPart(code: number): Promise<Part | null> {
   return (await getParts()).find((p) => p.code === code) ?? null;

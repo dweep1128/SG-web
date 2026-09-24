@@ -24,3 +24,6 @@ docs/busy-schema-report.md
 
 # npm cache (was committed by mistake in the initial commit)
 .npm-cache/
+
+.vercel
+.env*

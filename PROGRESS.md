@@ -30,6 +30,15 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
 - [ ] TODO: fill `CONTACT` in src/lib/site.ts (address, phone, hours, GSTIN, email, payment terms, about text).
 - Note: `git ls-files | grep -i env` → `.env.example` and `next-env.d.ts` (Next's generated TS types, no secrets). `.env` is untracked + gitignored.
 
+## Vercel deploy (2026-09-24)
+
+- [x] Phase 9 — deploy fix. Root cause of failed dashboard deploy (sg-dexuwrcav…): no Supabase env vars on the project →
+  `Error occurred prerendering page "/sitemap.xml"` / `Error: supabaseUrl is required.` → build exit 1.
+  Fixes: env vars set on Vercel (prod + preview); code accepts NEXT_PUBLIC_SUPABASE_ANON_KEY or _PUBLISHABLE_KEY;
+  catalog fetch failure during `next build` calls connection() → route renders at request time instead of failing the build
+  (verified: build with zero env vars passes); `engines.node = 24.x` (= Vercel project); import-path case check (123 imports OK); `npm ci` clean.
+- No photo-upload feature / sku-images.sql exists in this codebase → no Cloudinary/UPLOAD_PIN/service-role vars added.
+
 ## Verified 2026-09-24 (REST, publishable key, p_busy_code: null, 1000-row pages)
 
 1417 rows (2 pages: 1000 + 417), 1417 unique codes. Keys: busy_code, busy_name, hsn_code, unit_name, gst_pct,
