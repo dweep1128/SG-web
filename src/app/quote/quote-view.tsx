@@ -83,8 +83,8 @@ export function QuoteView() {
 
       <form className="quote__form card" onSubmit={send} aria-labelledby="send-heading">
         <h2 id="send-heading" className="quote__form-title">Send for quote</h2>
-        <Input id="q-name" label="Your name / shop name" required autoComplete="name" {...field("name")} />
-        <Input id="q-phone" label="Phone" type="tel" required inputMode="tel" autoComplete="tel" pattern={PHONE_PATTERN} hint="10-digit mobile, +91 optional" {...field("phone")} />
+        <Input id="q-name" label="Name / Shop name" required autoComplete="organization" {...field("name")} />
+        <Input id="q-phone" label="Phone (optional)" type="tel" inputMode="tel" autoComplete="tel" pattern={PHONE_PATTERN} hint="Only if you want a call back on a different number" {...field("phone")} />
         <Textarea id="q-notes" label="Notes (optional)" placeholder="Delivery city, model, urgency…" rows={3} {...field("notes")} />
         <button type="submit" className="btn btn--whatsapp btn--lg btn--block" disabled={!waUrl}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3a.4.4 0 0 0 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3z" /></svg>

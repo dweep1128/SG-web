@@ -4,7 +4,7 @@ export const SITE = {
   name: "S.K. Traders",
   shortName: "S.K.",
   tagline: "E-scooter spare parts for dealers and workshops",
-  description: "Live-stock e-scooter spare parts for dealers and workshops across India. Search by part name or code, build a quote, send it on WhatsApp.",
+  description: "E-scooter spare parts for dealers and workshops across India, with stock from our billing system. Search by part name or code, build a quote, send it on WhatsApp.",
   // Digits only, country code first (wa.me format). Empty string disables WhatsApp buttons.
   whatsappNumber: (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, ""),
   // Absolute origin for sitemap / canonical URLs. Server-side only fallback to Vercel's production host.

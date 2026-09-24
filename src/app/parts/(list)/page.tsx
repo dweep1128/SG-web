@@ -12,7 +12,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const title = cat ? categoryLabel(cat) : "All parts";
   return {
     title,
-    description: cat ? `${categoryLabel(cat)} for e-scooters — live stock, GST invoice, PAN-India dispatch.` : "Browse every e-scooter spare part we stock, with live stock and GST billing.",
+    description: cat ? `${categoryLabel(cat)} for e-scooters — stock from our billing system, GST invoice, PAN-India dispatch.` : "Browse every e-scooter spare part we stock, with stock from our billing system and GST billing.",
     alternates: { canonical: cat ? `/parts?cat=${cat}` : "/parts" },
   };
 }

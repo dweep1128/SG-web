@@ -85,8 +85,8 @@ export function buildQuoteMessage(quoteLines: QuoteLine[], contact: QuoteContact
     ...items,
     "",
     `Total: ${quoteLines.length} part${quoteLines.length === 1 ? "" : "s"}, ${totalQty} qty`,
-    `Name: ${contact.name.trim()}`,
-    `Phone: ${contact.phone.trim()}`,
+    `Name / Shop: ${contact.name.trim()}`,
+    ...(contact.phone.trim() ? [`Phone: ${contact.phone.trim()}`] : []),
     ...(contact.notes.trim() ? [`Notes: ${contact.notes.trim()}`] : []),
   ].join("\n");
 }

@@ -20,7 +20,7 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
 ## Review round 1 (2026-09-24)
 
 - [x] Phase 7a — data: row count reconciled (1422 sync-active − 5 active-excluded = 1417 live; code sets identical to the sync's dry-run output, nothing missing). docs/exclusions-draft.md (18 non-parts, 4 whole vehicles, 7 unsure). Categories: fasteners-first rule (nut/bolt/spring/key/washer/screw → hardware, except "WITH SPRING", "DOUBLE SPRING", "AND KEY", "KEY LOCK"), noun-first rules (throttle/lock → controls, motor → motors, seat → body, tie → hardware), misspellings (cylender, throttale, chagori, conctor, harnas, carier, axcel, …). "other" 69 → 44.
-- [ ] Phase 7b — quote form (Name / Shop name required, phone optional) + hero copy
+- [x] Phase 7b — quote form: "Name / Shop name" required, "Phone (optional)"; WhatsApp message now `Name / Shop: …` and a Phone line only when given. Hero: "Live stock" → "Stock from our billing system"; "packed same day" removed ("Shipped to your workshop anywhere in India."). Same wording in site + /parts meta descriptions.
 - [ ] Phase 7c — Big Shoulders size-adjusted fallback (no heading jump)
 
 ## Verified 2026-09-24 (REST, publishable key, p_busy_code: null, 1000-row pages)

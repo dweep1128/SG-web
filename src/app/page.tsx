@@ -26,9 +26,9 @@ function pickPopular(parts: Part[]): Part[] {
 }
 
 const VALUE_POINTS = [
-  { title: "Live stock", body: "Synced from our books, so what you see is on the shelf." },
+  { title: "Stock from our billing system", body: "Availability comes straight from our billing records." },
   { title: "GST billing", body: "Proper tax invoice with HSN on every order." },
-  { title: "PAN-India dispatch", body: "Packed same day, shipped to your workshop." },
+  { title: "PAN-India dispatch", body: "Shipped to your workshop anywhere in India." },
 ];
 
 export default async function Home() {
