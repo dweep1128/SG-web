@@ -8,7 +8,14 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
 - [x] Phase 3 — pages: sticky header (logo, search, categories <details> menu, live quote count), home (hero + search + value line, category tiles, popular parts, WhatsApp strip), /parts (category chips, in-stock toggle, sort, 24/page pagination, all URL-synced), /parts/[code] (ISR), /quote (localStorage, cross-tab sync, WhatsApp send), /about [FILL], 404, loading + error per route, global-error, /products → /parts 301
 - [x] Phase 4 — search: Fuse.js AND-of-tokens (word tokens fuzzy, tokens with digits exact), normalize (case, punctuation, "60 v"→"60v"), exact item code ranks first; header combobox (120ms debounce, ↑↓ Enter Esc, `/` focus, word-level highlight incl. typos, top 6 + See all); lazy `/api/search-index` (tuples, ISR 300s); /search reuses catalog filters; no-results → closest matches + WhatsApp with query; lib/search-aliases.ts (empty); `npm run check:search` self-check
 - [x] Phase 5 — polish: per-page metadata + canonicals, product titles `NAME (#code)`, sitemap.xml (1434 URLs), robots.txt (blocks /api, /quote, /search), SVG icon; a11y (skip link, labelled combobox/stepper/sort, visible focus ring, hidden h2 on listings, narrow-screen menu label kept for screen readers, AA contrast); perf (fixed 4:3 image frames, content-visibility on below-fold grids, search index 18 KB gzip loaded on first focus, 24 cards per page)
-- [ ] Phase 6 — final check (build, console, bundle grep, 375/1440, WhatsApp with 3 items)
+- [x] Phase 6 — final check (2026-09-24):
+  - REST re-check: 1417 rows, no cost keys, 0 synced_at-while-hidden. No dev fixture was ever needed (RPC was live from Phase 1).
+  - Clean `rm -rf .next && npm run build` passes; lint clean; `npm run check:search` passes.
+  - Console: zero messages on /, /parts (filters+page 2), /search, /parts/1291, /quote, /about, 404 (tracker verified with a probe).
+  - Bundle grep of .next/static: service key value, SUPABASE_SERVICE_ROLE_KEY, BUSY_*, sale_price, stock_qty, purchase, busy_items, D4 → 0 hits.
+  - 375px (iframe) + ~1440px: no horizontal overflow; header, hero, grid, chips checked visually.
+  - Quote with 3 parts (qtys 3/1/2) → wa.me/<number>?text=… decoded correctly incl. "&" and "#" in notes (tested with a throwaway number via shell env only).
+  - 404: unknown/invalid part codes return HTTP 404; /products/* → 301 /parts.
 
 ## Verified 2026-09-24 (REST, publishable key, p_busy_code: null, 1000-row pages)
 
