@@ -1,3 +1,28 @@
+/* ─── Display-font fallbacks ─────────────────────────────────────────────
+   Next has no metrics for Big Shoulders, so these are measured in-browser (2026-09-24) against the real font at
+   weight 800 on uppercase headings: Big Shoulders ≈ 69% of Arial Bold's width and 75% of Roboto Bold's (varies
+   67–71% / 73–77% across 20–72px because of the opsz axis). Matching width keeps line wraps identical on swap;
+   headings use numeric line-heights, so the ascent/descent overrides only keep the baseline in place.
+   Overrides are divided by size-adjust (the browser multiplies them back). Roboto covers Android (no Arial). */
+@font-face {
+  font-family: "Big Shoulders Fallback Arial";
+  src: local("Arial Bold"), local("Arial-BoldMT");
+  font-weight: 100 900;
+  size-adjust: 69%;
+  ascent-override: 143.5%;
+  descent-override: 30.4%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Big Shoulders Fallback Roboto";
+  src: local("Roboto Bold"), local("Roboto-Bold");
+  font-weight: 100 900;
+  size-adjust: 75%;
+  ascent-override: 132%;
+  descent-override: 28%;
+  line-gap-override: 0%;
+}
+
 /* ─── Tokens ─────────────────────────────────────────────────────────────
    One dominant brand colour (circuit green) + one sharp accent (volt).
    Volt is only ever used on dark/brand surfaces or as a fill behind ink text — never as text on paper (fails AA). */
@@ -21,7 +46,7 @@
   --ask-bg: #ecebe4;  --ask-ink: #3d4440;
   --danger: #b3261e;
 
-  --font-display: var(--font-shoulders), "Arial Narrow", sans-serif;
+  --font-display: var(--font-shoulders), "Big Shoulders Fallback Arial", "Big Shoulders Fallback Roboto", sans-serif;
   --font-body: var(--font-figtree), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 
@@ -283,7 +308,7 @@ select.input { appearance: none; padding-right: 36px; background: var(--surface)
 }
 .hero__inner { padding-block: 36px 52px; display: grid; gap: 18px; }
 .hero__eyebrow { color: rgb(255 255 255 / 0.8); }
-.hero__title { font-size: clamp(2.7rem, 11vw, 5.6rem); max-width: 14ch; }
+.hero__title { font-size: clamp(2.7rem, 11vw, 5.6rem); max-width: 6.9em; /* ≈14ch of Big Shoulders; em so the swap can't change it */ }
 .hero__mark { color: var(--accent); }
 .hero__lede { font-size: 1.05rem; max-width: 54ch; color: rgb(255 255 255 / 0.9); }
 .hero__search { max-width: 720px; filter: drop-shadow(0 16px 30px rgb(0 0 0 / 0.25)); }

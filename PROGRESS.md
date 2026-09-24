@@ -21,7 +21,7 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
 
 - [x] Phase 7a — data: row count reconciled (1422 sync-active − 5 active-excluded = 1417 live; code sets identical to the sync's dry-run output, nothing missing). docs/exclusions-draft.md (18 non-parts, 4 whole vehicles, 7 unsure). Categories: fasteners-first rule (nut/bolt/spring/key/washer/screw → hardware, except "WITH SPRING", "DOUBLE SPRING", "AND KEY", "KEY LOCK"), noun-first rules (throttle/lock → controls, motor → motors, seat → body, tie → hardware), misspellings (cylender, throttale, chagori, conctor, harnas, carier, axcel, …). "other" 69 → 44.
 - [x] Phase 7b — quote form: "Name / Shop name" required, "Phone (optional)"; WhatsApp message now `Name / Shop: …` and a Phone line only when given. Hero: "Live stock" → "Stock from our billing system"; "packed same day" removed ("Shipped to your workshop anywhere in India."). Same wording in site + /parts meta descriptions.
-- [ ] Phase 7c — Big Shoulders size-adjusted fallback (no heading jump)
+- [x] Phase 7c — size-adjusted @font-face fallbacks (Arial Bold 69%, Roboto Bold 75% for Android; ascent/descent overrides), hero max-width 14ch → 6.9em. Measured in-browser on /, /parts, /parts/2046, /quote at 375 + 1280: heading height change 0px, page height shift 0px (old stack: hero jumped 42px mobile / 88px desktop).
 
 ## Verified 2026-09-24 (REST, publishable key, p_busy_code: null, 1000-row pages)
 
@@ -38,7 +38,7 @@ busy_group_name, price, stock_status, stock_qty, stock_synced_at — no cost/D4 
 - Price shown as **excl. GST** ("₹330 + GST", detail page also shows incl. price) — `PRICE_INCLUDES_GST = false` in lib/site.ts. Unconfirmed whether BUSY D3 includes GST; this default never under-quotes.
 - Categories: 14 draft buckets (lib/categories.ts). Distribution: body 441, brakes 155, controls 121, wiring 119, hardware 111, lights 109, meters 84, other 69, motors 54, suspension 47, chargers 36, controllers 25, wheels 23, batteries 23.
 - Non-parts still in the live catalog (candidates for scripts/busy-sync/catalog-exclusions.json — not edited): ASUS LAPTOP, PRINTER TSC 244 PRO, LLOYD SAC (AC), 32 INCH LED TV, WALL FAN, MUSIC SYSTEM, VACCUM FLASK STEEL, HELMET/HELMENT ×3, E SCOOTER G3, E SCOOTER MAGIC, ELECTRIC SCOOTY, BICYCLE KIT 36 VOLT.
-- Design: dominant #0b6e4f circuit green, accent #d8ff3e volt (only on dark / as fill behind ink). Display font Big Shoulders (condensed industrial), body Figtree, codes JetBrains Mono. Next has no fallback metrics for Big Shoulders → small heading reflow on first font load (ceiling: add a size-adjusted @font-face fallback).
+- Design: dominant #0b6e4f circuit green, accent #d8ff3e volt (only on dark / as fill behind ink). Display font Big Shoulders (condensed industrial), body Figtree, codes JetBrains Mono. Font-swap reflow fixed in Phase 7c (measured fallbacks).
 - Header quote badge counts distinct parts, not total qty (50 bolts ≠ "50").
 - Pagination (numbered, URL `?page=`) instead of load-more: shareable + server-rendered, only 24 cards in the HTML.
 - "Popular parts" = priced + in-stock, one per category round-robin (no sales data yet). Swap for a hand-picked list later.
