@@ -54,6 +54,7 @@ export function CatalogView({ path, filters, defaultSort, results, categoryCount
         {pageCount > 1 && ` · page ${page} of ${pageCount}`}
       </p>
 
+      <h2 className="visually-hidden">Results</h2>
       {total === 0 ? (
         empty
       ) : (

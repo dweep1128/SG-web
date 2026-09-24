@@ -7,7 +7,7 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
 - [x] Phase 2 — design system: tokens (circuit green + volt), Big Shoulders / Figtree / JetBrains Mono, components/ui.tsx (Button, ButtonLink, ExternalButton, Badge, StockBadge, CodeTag, Input, Textarea, Card, Skeleton, EmptyState), components/toast.tsx. All token text pairs ≥ 5.4:1
 - [x] Phase 3 — pages: sticky header (logo, search, categories <details> menu, live quote count), home (hero + search + value line, category tiles, popular parts, WhatsApp strip), /parts (category chips, in-stock toggle, sort, 24/page pagination, all URL-synced), /parts/[code] (ISR), /quote (localStorage, cross-tab sync, WhatsApp send), /about [FILL], 404, loading + error per route, global-error, /products → /parts 301
 - [x] Phase 4 — search: Fuse.js AND-of-tokens (word tokens fuzzy, tokens with digits exact), normalize (case, punctuation, "60 v"→"60v"), exact item code ranks first; header combobox (120ms debounce, ↑↓ Enter Esc, `/` focus, word-level highlight incl. typos, top 6 + See all); lazy `/api/search-index` (tuples, ISR 300s); /search reuses catalog filters; no-results → closest matches + WhatsApp with query; lib/search-aliases.ts (empty); `npm run check:search` self-check
-- [ ] Phase 5 — polish (SEO, sitemap, robots, a11y, perf)
+- [x] Phase 5 — polish: per-page metadata + canonicals, product titles `NAME (#code)`, sitemap.xml (1434 URLs), robots.txt (blocks /api, /quote, /search), SVG icon; a11y (skip link, labelled combobox/stepper/sort, visible focus ring, hidden h2 on listings, narrow-screen menu label kept for screen readers, AA contrast); perf (fixed 4:3 image frames, content-visibility on below-fold grids, search index 18 KB gzip loaded on first focus, 24 cards per page)
 - [ ] Phase 6 — final check (build, console, bundle grep, 375/1440, WhatsApp with 3 items)
 
 ## Verified 2026-09-24 (REST, publishable key, p_busy_code: null, 1000-row pages)
@@ -40,6 +40,9 @@ busy_group_name, price, stock_status, stock_qty, stock_synced_at — no cost/D4 
 - 404 fix: detail route has no loading.tsx above it (listing loading moved into `parts/(list)/`, root loading removed) so unknown codes return a real HTTP 404 instead of a 200 stuck on a skeleton.
 - Units normalised for display: "Pcs." → "pcs", "PACKS" → "packs".
 - Prices: whole rupees shown without decimals (₹504), otherwise two decimals (₹529.20).
+- `NEXT_PUBLIC_SITE_URL` (optional) added to .env.example; on Vercel it falls back to VERCEL_PROJECT_PRODUCTION_URL.
+- /quote and /search are noindex + disallowed in robots; category pages are in the sitemap as `/parts?cat=…`.
+- App icon is a volt lightning bolt on brand green (no letters, since the brand name isn't final).
 
 ## Decisions (resolved 2026-09-24)
 
