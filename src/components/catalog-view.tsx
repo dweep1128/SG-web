@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import type { Part } from "@/lib/catalog-types";
 import { filterHref, filtersToParams, paginate, type Filters, type SortValue } from "@/lib/listing";
+import { Highlight } from "./highlight";
 import { PartCard } from "./part-card";
 import { SortSelect } from "./sort-select";
 
@@ -13,11 +14,11 @@ type Props = {
   results: Part[]; // already filtered + sorted
   categoryCounts: Map<string, number>; // counts before the category filter, so chips show what you'd get
   extraParams?: Record<string, string | undefined>; // e.g. { q }
-  highlights?: Map<number, ReactNode>;
+  highlightQuery?: string;
   empty: ReactNode;
 };
 
-export function CatalogView({ path, filters, defaultSort, results, categoryCounts, extraParams = {}, highlights, empty }: Props) {
+export function CatalogView({ path, filters, defaultSort, results, categoryCounts, extraParams = {}, highlightQuery, empty }: Props) {
   const params = filtersToParams(filters, defaultSort, extraParams);
   const { items, page, pageCount, total } = paginate(results, filters.page);
   const href = (patch: Record<string, string | undefined>) => filterHref(path, params, { page: undefined, ...patch });
@@ -58,7 +59,7 @@ export function CatalogView({ path, filters, defaultSort, results, categoryCount
       ) : (
         <ul className="part-grid" aria-label="Parts">
           {items.map((p, i) => (
-            <li key={p.code}><PartCard part={p} index={i} highlight={highlights?.get(p.code)} /></li>
+            <li key={p.code}><PartCard part={p} index={i} highlight={highlightQuery ? <Highlight text={p.name} query={highlightQuery} /> : undefined} /></li>
           ))}
         </ul>
       )}

@@ -6,7 +6,7 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
 - [x] Phase 1 — data layer: paged RPC fetch (1417 rows), unstable_cache 300s, lean `Part` (no qty/cost), draft classifier, <PartImage>, Cloudinary-only remotePatterns, old routes removed
 - [x] Phase 2 — design system: tokens (circuit green + volt), Big Shoulders / Figtree / JetBrains Mono, components/ui.tsx (Button, ButtonLink, ExternalButton, Badge, StockBadge, CodeTag, Input, Textarea, Card, Skeleton, EmptyState), components/toast.tsx. All token text pairs ≥ 5.4:1
 - [x] Phase 3 — pages: sticky header (logo, search, categories <details> menu, live quote count), home (hero + search + value line, category tiles, popular parts, WhatsApp strip), /parts (category chips, in-stock toggle, sort, 24/page pagination, all URL-synced), /parts/[code] (ISR), /quote (localStorage, cross-tab sync, WhatsApp send), /about [FILL], 404, loading + error per route, global-error, /products → /parts 301
-- [ ] Phase 4 — search (fuzzy, header dropdown, /search, lib/search-aliases.ts)
+- [x] Phase 4 — search: Fuse.js AND-of-tokens (word tokens fuzzy, tokens with digits exact), normalize (case, punctuation, "60 v"→"60v"), exact item code ranks first; header combobox (120ms debounce, ↑↓ Enter Esc, `/` focus, word-level highlight incl. typos, top 6 + See all); lazy `/api/search-index` (tuples, ISR 300s); /search reuses catalog filters; no-results → closest matches + WhatsApp with query; lib/search-aliases.ts (empty); `npm run check:search` self-check
 - [ ] Phase 5 — polish (SEO, sitemap, robots, a11y, perf)
 - [ ] Phase 6 — final check (build, console, bundle grep, 375/1440, WhatsApp with 3 items)
 
@@ -35,6 +35,11 @@ busy_group_name, price, stock_status, stock_qty, stock_synced_at — no cost/D4 
 - Quote is NOT cleared after sending (user may need to resend); explicit "Clear quote" button instead.
 - Detail pages render on first request then cache 300s (ISR); none prebuilt at build time.
 - Error pages never show `error.message` to shoppers; only the digest ref.
+- Search: exact-substring for any token containing a digit ("60v" never fuzzes to "48v"); typo tolerance only on words ≥ 3 letters. Threshold 0.34.
+- Search aliases map slang → item codes (not slang → canonical word), so one alias can point at several SKUs.
+- 404 fix: detail route has no loading.tsx above it (listing loading moved into `parts/(list)/`, root loading removed) so unknown codes return a real HTTP 404 instead of a 200 stuck on a skeleton.
+- Units normalised for display: "Pcs." → "pcs", "PACKS" → "packs".
+- Prices: whole rupees shown without decimals (₹504), otherwise two decimals (₹529.20).
 
 ## Decisions (resolved 2026-09-24)
 

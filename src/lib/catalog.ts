@@ -21,7 +21,7 @@ function toPart(row: CatalogRow): Part {
     price: row.price != null && row.price > 0 ? Number(row.price) : null,
     gst: row.gst_pct == null ? null : Number(row.gst_pct),
     hsn: row.hsn_code?.trim() || null,
-    unit: row.unit_name,
+    unit: row.unit_name?.trim().replace(/\.$/, "").toLowerCase() || null, // BUSY mixes "Pcs." / "pcs" / "PACKS"
     stock: stockState(row),
     cat: classifyPart(row.busy_name, row.busy_group_name),
     syncedAt: row.stock_synced_at,

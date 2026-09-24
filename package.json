@@ -10,7 +10,8 @@
     "sync:items": "node scripts/busy-sync/index.mjs items",
     "sync:stock": "node scripts/busy-sync/index.mjs stock",
     "sync:full": "node scripts/busy-sync/index.mjs full",
-    "sync:check": "node scripts/busy-sync/check.mjs"
+    "sync:check": "node scripts/busy-sync/check.mjs",
+    "check:search": "node --experimental-strip-types --no-warnings scripts/check-search.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.3",

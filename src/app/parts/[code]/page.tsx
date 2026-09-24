@@ -25,7 +25,8 @@ async function load(params: Props["params"]): Promise<Part | null> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const part = await load(params);
-  if (!part) return { title: "Part not found" };
+  // notFound() here (metadata resolves before the loading shell streams) gives a real 404 status + page.
+  if (!part) notFound();
   return {
     title: `${part.name} (#${part.code})`,
     description: `${part.name} — item code ${part.code}${part.hsn ? `, HSN ${part.hsn}` : ""}. ${formatPrice(part.price)}${part.price != null ? ` ${GST_NOTE}` : ""}. ${STOCK_LABEL[part.stock]}. Order via WhatsApp quote.`,

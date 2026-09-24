@@ -39,10 +39,13 @@ export const STOCK_LABEL: Record<StockState, string> = {
   ask: "Check availability",
 };
 
-const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const inrWhole = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+const inrPaise = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// ₹504 for whole rupees, ₹529.20 otherwise — never "₹529.2".
 export function formatPrice(price: number | null): string {
-  return price == null ? "Price on request" : inr.format(price);
+  if (price == null) return "Price on request";
+  return Number.isInteger(price) ? inrWhole.format(price) : inrPaise.format(price);
 }
 
 export const GST_NOTE = PRICE_INCLUDES_GST ? "incl. GST" : "+ GST";

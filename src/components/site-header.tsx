@@ -14,7 +14,7 @@ export function SiteHeader() {
         </Link>
         <CategoriesMenu />
         <div className="site-header__search">
-          <SearchBox id="header-search" />
+          <SearchBox id="header-search" shortcut />
         </div>
         <QuoteLink />
       </div>
