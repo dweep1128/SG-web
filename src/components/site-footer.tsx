@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SITE, whatsappLink } from "@/lib/site";
+import { CONTACT, SITE, whatsappLink } from "@/lib/site";
 
 export function SiteFooter() {
   const wa = whatsappLink(`Hello ${SITE.name}, I have a question about a part.`);
@@ -9,8 +9,8 @@ export function SiteFooter() {
         <div>
           <p className="site-footer__brand">{SITE.name}</p>
           <p className="site-footer__muted">{SITE.tagline}.</p>
-          <p className="site-footer__muted">[FILL: shop address, city, PIN]</p>
-          <p className="site-footer__muted">GSTIN: [FILL]</p>
+          {CONTACT.address && <p className="site-footer__muted">{CONTACT.address}</p>}
+          {CONTACT.gstin && <p className="site-footer__muted">GSTIN: {CONTACT.gstin}</p>}
         </div>
         <nav aria-label="Footer">
           <ul className="site-footer__links">

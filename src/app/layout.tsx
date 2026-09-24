@@ -4,7 +4,7 @@ import "./globals.css";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/toast";
-import { SITE } from "@/lib/site";
+import { ALLOW_INDEXING, SITE } from "@/lib/site";
 
 const display = Big_Shoulders({ subsets: ["latin"], axes: ["opsz"], variable: "--font-shoulders", display: "swap", adjustFontFallback: false });
 const body = Figtree({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-figtree", display: "swap" });
@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   title: { default: `${SITE.name} — ${SITE.tagline}`, template: `%s | ${SITE.name}` },
   description: SITE.description,
   openGraph: { siteName: SITE.name, type: "website", locale: "en_IN" },
+  robots: ALLOW_INDEXING ? undefined : { index: false, follow: false },
 };
 
 export const viewport: Viewport = { themeColor: "#0b6e4f" };

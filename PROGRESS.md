@@ -23,6 +23,13 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
 - [x] Phase 7b — quote form: "Name / Shop name" required, "Phone (optional)"; WhatsApp message now `Name / Shop: …` and a Phone line only when given. Hero: "Live stock" → "Stock from our billing system"; "packed same day" removed ("Shipped to your workshop anywhere in India."). Same wording in site + /parts meta descriptions.
 - [x] Phase 7c — size-adjusted @font-face fallbacks (Arial Bold 69%, Roboto Bold 75% for Android; ascent/descent overrides), hero max-width 14ch → 6.9em. Measured in-browser on /, /parts, /parts/2046, /quote at 375 + 1280: heading height change 0px, page height shift 0px (old stack: hero jumped 42px mobile / 88px desktop).
 
+## Demo deploy prep (2026-09-24)
+
+- [x] Phase 8 — demo hardening: 22 codes from docs/exclusions-draft.md §A (not parts) + §B (whole vehicles) hidden via `src/lib/hidden-items.ts` filter in lib/catalog.ts (their detail pages 404); §C unsure stays visible. All [FILL] placeholders replaced by `CONTACT` in lib/site.ts (empty = not rendered). `NEXT_PUBLIC_ALLOW_INDEXING` (default false → robots.txt `Disallow: /` + noindex meta on every page).
+- [ ] **TODO (after demo): move the 22 hidden codes into scripts/busy-sync/catalog-exclusions.json + re-sync, then delete src/lib/hidden-items.ts.**
+- [ ] TODO: fill `CONTACT` in src/lib/site.ts (address, phone, hours, GSTIN, email, payment terms, about text).
+- Note: `git ls-files | grep -i env` → `.env.example` and `next-env.d.ts` (Next's generated TS types, no secrets). `.env` is untracked + gitignored.
+
 ## Verified 2026-09-24 (REST, publishable key, p_busy_code: null, 1000-row pages)
 
 1417 rows (2 pages: 1000 + 417), 1417 unique codes. Keys: busy_code, busy_name, hsn_code, unit_name, gst_pct,

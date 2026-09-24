@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import { classifyPart } from "./categories";
+import { HIDDEN_CODES } from "./hidden-items";
 import type { CatalogRow, Part, StockState } from "./catalog-types";
 import { CATALOG_REVALIDATE_SECONDS, LOW_STOCK_THRESHOLD } from "./site";
 
@@ -48,8 +49,12 @@ async function fetchAllRows(): Promise<CatalogRow[]> {
 }
 
 export const getParts = unstable_cache(
-  async (): Promise<Part[]> => (await fetchAllRows()).map(toPart).sort((a, b) => a.name.localeCompare(b.name)),
-  ["catalog-parts-v1"],
+  async (): Promise<Part[]> =>
+    (await fetchAllRows())
+      .filter((row) => !HIDDEN_CODES.has(row.busy_code))
+      .map(toPart)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  ["catalog-parts-v2"], // bumped: the hidden-items filter changes the cached result
   { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["catalog"] },
 );
 

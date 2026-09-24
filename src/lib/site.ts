@@ -13,6 +13,17 @@ export const SITE = {
     (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000"),
 } as const;
 
+// Business details. Empty string = not shown anywhere (no placeholders on the live site). Fill in to publish.
+export const CONTACT = {
+  address: "", // shop address, city, state, PIN
+  phone: "",
+  hours: "", // e.g. "Mon–Sat, 10:00–19:00"
+  gstin: "",
+  email: "",
+  paymentTerms: "", // e.g. "UPI or bank transfer; credit for regular dealers"
+  about: [] as string[], // 1–2 short paragraphs for /about
+};
+
 // BUSY sale price (Master1.D3) is shown as-is. Unconfirmed whether it includes GST — see PROGRESS.md
 // "Decisions to review". false = show "+ GST" and the computed incl. price, which never under-quotes.
 export const PRICE_INCLUDES_GST = false;
@@ -21,6 +32,9 @@ export const PRICE_INCLUDES_GST = false;
 export const LOW_STOCK_THRESHOLD = 10;
 
 export const PAGE_SIZE = 24;
+
+// Search engines are kept out unless explicitly enabled ("true" exactly): robots.txt disallows all + noindex meta.
+export const ALLOW_INDEXING = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true";
 
 // Catalog + detail data cache lifetime (seconds). Matches the stock sync cadence closely enough.
 export const CATALOG_REVALIDATE_SECONDS = 300;
