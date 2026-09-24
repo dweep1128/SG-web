@@ -18,3 +18,9 @@ tsconfig.tsbuildinfo
 
 # BUSY sync dry-run output and local state — real business data
 local-data/
+
+# Local-only BUSY schema notes — contains real purchase-price samples, never commit
+docs/busy-schema-report.md
+
+# npm cache (was committed by mistake in the initial commit)
+.npm-cache/
