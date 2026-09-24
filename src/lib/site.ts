@@ -8,10 +8,20 @@ export const SITE = {
   // Digits only, country code first (wa.me format). Empty string disables WhatsApp buttons.
   whatsappNumber: (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, ""),
   // Absolute origin for sitemap / canonical URLs. Server-side only fallback to Vercel's production host.
-  url:
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000"),
+  url: siteUrl(),
 } as const;
+
+// A malformed NEXT_PUBLIC_SITE_URL must not crash the build (metadataBase does `new URL()`): ignore it and fall back.
+function siteUrl(): string {
+  const candidates = [
+    process.env.NEXT_PUBLIC_SITE_URL?.trim(),
+    process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`,
+  ];
+  for (const c of candidates) {
+    if (c && URL.canParse(c)) return c.replace(/\/$/, "");
+  }
+  return "http://localhost:3000";
+}
 
 // Business details. Empty string = not shown anywhere (no placeholders on the live site). Fill in to publish.
 export const CONTACT = {
