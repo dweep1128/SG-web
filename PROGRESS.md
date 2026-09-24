@@ -17,6 +17,12 @@ Checkpoint rule: build passes → commit `site: phase N — <what>` → tick her
   - Quote with 3 parts (qtys 3/1/2) → wa.me/<number>?text=… decoded correctly incl. "&" and "#" in notes (tested with a throwaway number via shell env only).
   - 404: unknown/invalid part codes return HTTP 404; /products/* → 301 /parts.
 
+## Review round 1 (2026-09-24)
+
+- [x] Phase 7a — data: row count reconciled (1422 sync-active − 5 active-excluded = 1417 live; code sets identical to the sync's dry-run output, nothing missing). docs/exclusions-draft.md (18 non-parts, 4 whole vehicles, 7 unsure). Categories: fasteners-first rule (nut/bolt/spring/key/washer/screw → hardware, except "WITH SPRING", "DOUBLE SPRING", "AND KEY", "KEY LOCK"), noun-first rules (throttle/lock → controls, motor → motors, seat → body, tie → hardware), misspellings (cylender, throttale, chagori, conctor, harnas, carier, axcel, …). "other" 69 → 44.
+- [ ] Phase 7b — quote form (Name / Shop name required, phone optional) + hero copy
+- [ ] Phase 7c — Big Shoulders size-adjusted fallback (no heading jump)
+
 ## Verified 2026-09-24 (REST, publishable key, p_busy_code: null, 1000-row pages)
 
 1417 rows (2 pages: 1000 + 417), 1417 unique codes. Keys: busy_code, busy_name, hsn_code, unit_name, gst_pct,

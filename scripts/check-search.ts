@@ -54,5 +54,11 @@ assert.equal(classifyPart("REAR BRAKE CABLE", "CABLE ALL TYPE"), "brakes");
 assert.equal(classifyPart("CHARGING SOCKET XLR FEMALE WITH WIRE", "General"), "wiring");
 assert.equal(classifyPart("FRONT MUDGUARD AMPERE TYPE RED (A3)", "MUDGUARD ALL TYPE"), "body");
 assert.equal(classifyPart("ASUS LAPTOP", "General"), "other");
+assert.equal(classifyPart("MOTOR L KEY NUT (10PCS PACK)", "General"), "hardware", "fasteners are hardware");
+assert.equal(classifyPart("SIDE STAND NUT BOLT (5 PCS PACK)", "General"), "hardware");
+assert.equal(classifyPart("BRAKE SHOE 110MM WITH SPRING", "General"), "brakes", "accessory spring");
+assert.equal(classifyPart("KEY LOCK", "General"), "controls");
+assert.equal(classifyPart("THROTTLE WITH DISPLAY AND KEY", "General"), "controls");
+assert.equal(classifyPart("HUB MOTOR 1000W 10\" DISC TYPE", "General"), "motors");
 
 console.log("check-search: all assertions passed");
