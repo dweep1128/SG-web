@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Pagination } from "@/components/catalog-view";
 import { PartImage } from "@/components/part-image";
 import { SearchInput } from "@/components/sk-image/search-input";
+import { SyncHealth } from "@/components/sk-image/sync-health";
 import { Badge, CodeTag, EmptyState } from "@/components/ui";
 import { filterHref, type SearchParams } from "@/lib/listing";
 import { photosHref, type Source } from "@/lib/sk-image";
@@ -61,6 +62,7 @@ export default async function PhotosPage({ searchParams }: { searchParams: Promi
         <p className="sk-stats">
           <strong>{(withPhoto.count ?? 0).toLocaleString("en-IN")}</strong> of <strong>{(all.count ?? 0).toLocaleString("en-IN")}</strong> products have photos
         </p>
+        <SyncHealth />
       </div>
 
       <SearchInput defaultValue={q} />
