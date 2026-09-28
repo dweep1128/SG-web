@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 import type { Part } from "./catalog-types";
 import { SITE } from "./site";
 
-export type QuoteLine = Pick<Part, "code" | "name" | "price" | "gst" | "unit"> & { qty: number };
+export type QuoteLine = Pick<Part, "code" | "sku" | "name" | "price" | "gst" | "unit"> & { qty: number };
 
 export const MIN_QTY = 1;
 export const MAX_QTY = 999;
@@ -20,7 +20,12 @@ export const clampQty = (n: number) => Math.min(MAX_QTY, Math.max(MIN_QTY, Math.
 function read(): QuoteLine[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    return Array.isArray(parsed) ? parsed.filter((l) => typeof l?.code === "number" && typeof l?.name === "string").map((l) => ({ ...l, qty: clampQty(l.qty) })) : [];
+    // Lines saved before manual products had numeric codes and no sku: the BUSY code doubles as both.
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((l) => (typeof l?.code === "number" || typeof l?.code === "string") && typeof l?.name === "string")
+          .map((l) => ({ ...l, code: String(l.code), sku: String(l.sku ?? l.code), qty: clampQty(l.qty) }))
+      : [];
   } catch {
     return []; // private mode / corrupt JSON: start empty rather than crash
   }
@@ -60,25 +65,25 @@ export function useQuote(): QuoteLine[] {
   return useSyncExternalStore(subscribe, snapshot, () => EMPTY);
 }
 
-export function addToQuote(part: Pick<Part, "code" | "name" | "price" | "gst" | "unit">, qty: number) {
+export function addToQuote(part: Pick<Part, "code" | "sku" | "name" | "price" | "gst" | "unit">, qty: number) {
   const current = snapshot();
   const existing = current.find((l) => l.code === part.code);
   write(
     existing
       ? current.map((l) => (l.code === part.code ? { ...l, qty: clampQty(l.qty + qty) } : l))
-      : [...current, { code: part.code, name: part.name, price: part.price, gst: part.gst, unit: part.unit, qty: clampQty(qty) }],
+      : [...current, { code: part.code, sku: part.sku, name: part.name, price: part.price, gst: part.gst, unit: part.unit, qty: clampQty(qty) }],
   );
 }
 
-export const setQty = (code: number, qty: number) => write(snapshot().map((l) => (l.code === code ? { ...l, qty: clampQty(qty) } : l)));
-export const removeLine = (code: number) => write(snapshot().filter((l) => l.code !== code));
+export const setQty = (code: string, qty: number) => write(snapshot().map((l) => (l.code === code ? { ...l, qty: clampQty(qty) } : l)));
+export const removeLine = (code: string) => write(snapshot().filter((l) => l.code !== code));
 export const clearQuote = () => write([]);
 
 export type QuoteContact = { name: string; phone: string; notes: string };
 
 export function buildQuoteMessage(quoteLines: QuoteLine[], contact: QuoteContact): string {
   const totalQty = quoteLines.reduce((sum, l) => sum + l.qty, 0);
-  const items = quoteLines.map((l, i) => `${i + 1}. ${l.name}\n   Code ${l.code} · Qty ${l.qty}${l.unit ? ` ${l.unit}` : ""}`);
+  const items = quoteLines.map((l, i) => `${i + 1}. ${l.name}\n   Code ${l.sku} · Qty ${l.qty}${l.unit ? ` ${l.unit}` : ""}`);
   return [
     `Hello ${SITE.name}, please send me a quote for:`,
     "",

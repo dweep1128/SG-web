@@ -154,7 +154,7 @@ export function SearchBox({ id, size = "md", defaultValue = "", shortcut = false
           <li key={d.code} id={`${listId}-${i}`} role="option" aria-selected={i === active} className="suggest__item" onClick={() => go(partHref(d.code))} onMouseMove={() => setActive(i)}>
             <span className="suggest__name"><Highlight text={d.name} query={q} /></span>
             <span className="suggest__meta">
-              <span className="mono">#{d.code}</span>
+              <span className="mono">#{d.sku}</span>
               <span>{formatPrice(d.price)}</span>
               <span className={`suggest__stock suggest__stock--${d.stock}`}>{STOCK_LABEL[d.stock]}</span>
             </span>

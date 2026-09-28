@@ -1,0 +1,126 @@
+/* SK-image staff portal. Layout rules only: every colour, radius, shadow and font comes from the tokens in
+   globals.css, and buttons/chips/cards/badges/inputs reuse the storefront classes. Phone-first, 44px+ tap targets. */
+
+/* The storefront header/footer render from the root layout; the portal swaps in its own nav. */
+body:has(.sk) > .site-header, body:has(.sk) > .site-footer { display: none; }
+
+/* ─── Nav ─── */
+.sk-nav__inner { display: grid; gap: 8px; padding-block: 10px; }
+.sk-nav__links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.sk-nav__link {
+  display: grid; place-items: center; min-height: 48px; padding: 6px 8px; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: #fff; font-weight: 700; text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.sk-nav__link:hover { background: var(--brand-strong); }
+.sk-nav__link[aria-current="page"] { background: var(--accent); color: var(--ink); }
+@media (min-width: 700px) {
+  .sk-nav__inner { grid-template-columns: auto 1fr; align-items: center; }
+  .sk-nav__links { justify-self: end; grid-template-columns: repeat(3, auto); }
+  .sk-nav__link { padding-inline: 16px; }
+}
+
+/* ─── Headings / stats ─── */
+.sk-title { font-size: clamp(2rem, 8vw, 3rem); }
+.sk-title--product { font-size: clamp(1.6rem, 6vw, 2.4rem); overflow-wrap: anywhere; }
+.sk-subtitle { font-size: 1.6rem; margin: 32px 0 12px; }
+.sk-stats { color: var(--muted); }
+.sk-stats strong { color: var(--ink); }
+
+/* ─── Photos page ─── */
+.sk-search { max-width: none; margin-bottom: 14px; }
+.sk-chip { min-height: 44px; padding-inline: 18px; }
+.sk-spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid currentColor; border-right-color: transparent; animation: sk-spin 0.7s linear infinite; }
+@keyframes sk-spin { to { transform: rotate(360deg); } }
+
+/* ─── Login + forms ─── */
+.sk-login { display: grid; place-items: center; min-height: 80dvh; }
+.sk-login__card { width: min(420px, 100%); padding: 24px 20px; display: grid; gap: 10px; }
+.sk-form { display: grid; gap: 16px; margin-top: 8px; }
+.sk-form .input { min-height: 52px; font-size: 1rem; }
+.sk-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sk-form__error { color: var(--danger); font-weight: 600; }
+.sk-toggle { cursor: pointer; min-height: 48px; }
+.sk-toggle input:checked + .toggle__track { background: var(--brand); }
+.sk-toggle input:checked + .toggle__track::after { transform: translateX(18px); }
+.sk-toggle input:focus-visible + .toggle__track { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 5px var(--accent); }
+.btn--disabled { opacity: 0.5; pointer-events: none; }
+
+/* ─── Add product page ─── */
+.sk-add { display: grid; gap: 8px; }
+.sk-form-card { padding: 20px 16px; display: grid; gap: 8px; }
+.sk-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.sk-row { display: grid; gap: 12px; padding: 14px; }
+.sk-row__info { display: grid; gap: 6px; min-width: 0; }
+.sk-row__name { font-weight: 700; overflow-wrap: anywhere; }
+.sk-row__meta { font-size: 0.85rem; color: var(--muted); }
+.sk-row__actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sk-row__actions .btn { min-height: 44px; }
+@media (min-width: 900px) {
+  .sk-add { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 32px; align-items: start; }
+  .sk-add .sk-subtitle { margin-top: 0; }
+  .sk-row { grid-template-columns: 1fr auto; align-items: center; }
+}
+
+/* ─── Product photos ─── */
+.sk-add-photo { margin-bottom: 16px; }
+.sk-media { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 700px) { .sk-media { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .sk-media { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.sk-media__item { position: relative; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); display: grid; gap: 6px; }
+.sk-media__item[aria-busy="true"] { opacity: 0.55; }
+.sk-media__cover { position: absolute; top: 12px; left: 12px; }
+.sk-media__actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.sk-icon-btn { min-height: 48px; padding: 0; font-size: 1.25rem; }
+.sk-icon-btn[aria-pressed="true"] { color: var(--brand); opacity: 1; }
+.sk-icon-btn--danger { color: var(--danger); }
+
+/* Bottom sheet (<dialog>): padding-free so a tap on the element itself means the backdrop. */
+.sk-sheet {
+  margin: auto 0 0; width: 100%; max-width: 100%; padding: 0; border: 0; border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface); color: var(--ink); box-shadow: 0 -18px 40px -18px rgb(0 0 0 / 0.45);
+}
+.sk-sheet[open] { animation: sk-sheet-in 0.25s var(--ease); }
+.sk-sheet::backdrop { background: rgb(15 21 18 / 0.55); }
+.sk-sheet__body { display: grid; gap: 10px; padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); }
+.sk-sheet__title { font-size: 1.5rem; margin-bottom: 4px; }
+@keyframes sk-sheet-in { from { transform: translateY(100%); } }
+@media (min-width: 700px) { .sk-sheet { margin: auto; max-width: 420px; border-radius: var(--radius); } }
+
+/* ─── Camera (full screen) ─── */
+.sk-cam { position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; background: #000; color: #fff; }
+.sk-cam__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) var(--gutter) 10px; }
+.sk-cam__left { font: 600 0.8rem/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: #cfd5d1; }
+.sk-cam__done { min-height: 48px; padding-inline: 24px; }
+.sk-cam__view { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+.sk-cam__video { width: 100%; height: 100%; object-fit: contain; }
+.sk-cam__video--mirror { transform: scaleX(-1); }
+.sk-cam__flash { position: absolute; inset: 0; background: #fff; pointer-events: none; animation: sk-flash 0.25s ease-out forwards; }
+@keyframes sk-flash { from { opacity: 0.85; } to { opacity: 0; } }
+.sk-cam__error { display: grid; gap: 14px; padding: 24px var(--gutter); max-width: 460px; text-align: center; color: #e8ebe8; }
+.sk-cam__error-title { font: 800 1.6rem/1 var(--font-display); text-transform: uppercase; color: var(--accent); }
+.sk-cam__controls { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 14px var(--gutter) calc(18px + env(safe-area-inset-bottom)); }
+.sk-cam__shutter {
+  width: 78px; height: 78px; border-radius: 50%; cursor: pointer;
+  border: 5px solid #fff; background: var(--accent); box-shadow: 0 0 0 3px #000 inset;
+  transition: transform 0.12s var(--ease);
+}
+.sk-cam__shutter:active { transform: scale(0.9); }
+.sk-cam__shutter:disabled { background: #4a534e; cursor: not-allowed; }
+.sk-cam__flip { justify-self: end; width: 56px; height: 56px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgb(255 255 255 / 0.16); color: #fff; cursor: pointer; }
+.sk-cam__flip:disabled { opacity: 0.4; }
+
+/* ─── Upload strip (camera + page) ─── */
+.sk-strip { list-style: none; margin: 0 0 16px; padding: 4px 0; display: flex; gap: 8px; overflow-x: auto; }
+.sk-cam .sk-strip { margin: 0; padding: 8px var(--gutter); background: rgb(0 0 0 / 0.6); }
+.sk-strip__item { position: relative; flex: none; }
+.sk-strip__thumb { position: relative; display: block; width: 64px; height: 64px; padding: 0; border: 2px solid var(--line-strong); border-radius: var(--radius-sm); overflow: hidden; background: var(--ink); cursor: default; }
+.sk-strip__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sk-strip__state { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 1.3rem; color: #fff; background: rgb(15 21 18 / 0.45); }
+.sk-strip__item--done .sk-strip__thumb { border-color: var(--accent); }
+.sk-strip__item--done .sk-strip__state { background: transparent; color: var(--accent); text-shadow: 0 1px 3px #000; align-items: end; justify-items: end; padding: 2px 5px; }
+.sk-strip__item--failed .sk-strip__thumb { border-color: var(--danger); cursor: pointer; }
+.sk-strip__item--failed .sk-strip__state { background: color-mix(in srgb, var(--danger) 70%, transparent); }
+.sk-strip__discard {
+  position: absolute; top: -6px; right: -6px; width: 26px; height: 26px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; cursor: pointer;
+}

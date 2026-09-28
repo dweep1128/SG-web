@@ -6,27 +6,28 @@ import { normalize } from "./normalize.ts";
 import { SEARCH_ALIASES } from "./search-aliases.ts";
 
 // The minimum a search result needs. Part satisfies it; the client index ships only these fields.
-export type SearchDoc = { code: number; name: string; price: number | null; hsn: string | null; stock: "in" | "low" | "ask"; cat: CategorySlug };
+export type SearchDoc = { code: string; sku: string; name: string; price: number | null; hsn: string | null; stock: "in" | "low" | "ask"; cat: CategorySlug };
 
 const FUZZY_THRESHOLD = 0.34; // "chager" → "charger" passes; "48v" vs "60v" does not
 const SUGGEST_THRESHOLD = 0.5;
 const MIN_FUZZY_TOKEN = 3;
 
-const aliasesByCode = new Map<number, string[]>();
-for (const [alias, codes] of Object.entries(SEARCH_ALIASES)) for (const c of codes) aliasesByCode.set(c, [...(aliasesByCode.get(c) ?? []), alias]);
+const aliasesByCode = new Map<string, string[]>();
+for (const [alias, codes] of Object.entries(SEARCH_ALIASES)) for (const c of codes.map(String)) aliasesByCode.set(c, [...(aliasesByCode.get(c) ?? []), alias]);
 
 type Row<T> = { doc: T; hay: string };
 
-export type SearchIndex<T extends SearchDoc> = { fuse: Fuse<Row<T>>; byCode: Map<number, T> };
+// bySku: lower-cased item code / SKU → doc, for the exact-code-first rule.
+export type SearchIndex<T extends SearchDoc> = { fuse: Fuse<Row<T>>; bySku: Map<string, T> };
 
 export function buildIndex<T extends SearchDoc>(docs: T[]): SearchIndex<T> {
   const rows = docs.map((doc) => ({
     doc,
-    hay: normalize([doc.name, doc.code, doc.hsn ?? "", categoryLabel(doc.cat), ...(aliasesByCode.get(doc.code) ?? [])].join(" ")),
+    hay: normalize([doc.name, doc.sku, doc.hsn ?? "", categoryLabel(doc.cat), ...(aliasesByCode.get(doc.code) ?? [])].join(" ")),
   }));
   return {
     fuse: new Fuse(rows, { keys: ["hay"], useExtendedSearch: true, ignoreLocation: true, threshold: FUZZY_THRESHOLD, includeScore: true }),
-    byCode: new Map(docs.map((d) => [d.code, d])),
+    bySku: new Map(docs.map((d) => [d.sku.toLowerCase(), d])),
   };
 }
 
@@ -44,8 +45,8 @@ export function search<T extends SearchDoc>(index: SearchIndex<T>, q: string, li
   const tokens = queryTokens(q);
   if (!tokens.length) return [];
   const hits = index.fuse.search(extendedQuery(tokens, " "), limit ? { limit } : undefined).map((r) => r.item.doc);
-  // An exact item code always wins.
-  const exact = tokens.length === 1 && /^\d+$/.test(tokens[0]) ? index.byCode.get(Number(tokens[0])) : undefined;
+  // An exact item code / SKU always wins.
+  const exact = tokens.length === 1 ? index.bySku.get(tokens[0]) : undefined;
   if (!exact) return hits;
   return [exact, ...hits.filter((d) => d !== exact)].slice(0, limit ?? Infinity);
 }

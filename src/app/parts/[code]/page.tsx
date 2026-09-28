@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AddToQuote } from "@/components/add-to-quote";
 import { PartGrid } from "@/components/part-card";
 import { PartImage } from "@/components/part-image";
 import { CodeTag, ExternalButton, StockBadge } from "@/components/ui";
-import { getPart, getParts } from "@/lib/catalog";
+import { getPart, getPartPhotos, getParts } from "@/lib/catalog";
 import { categoryLabel, formatPrice, GST_NOTE, priceWithGst, STOCK_LABEL, updatedAgo, type Part } from "@/lib/catalog-types";
+import { cld, DETAIL_IMAGE_WIDTH } from "@/lib/cloudinary";
 import { SITE, whatsappLink } from "@/lib/site";
 
 export const revalidate = 300;
@@ -20,7 +22,7 @@ type Props = { params: Promise<{ code: string }> };
 
 async function load(params: Props["params"]): Promise<Part | null> {
   const { code } = await params;
-  return /^\d{1,9}$/.test(code) ? getPart(Number(code)) : null;
+  return /^m?\d{1,18}$/.test(code) ? getPart(code) : null; // "1291" (BUSY) or "m12" (manual)
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -28,8 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // notFound() here (metadata resolves before the loading shell streams) gives a real 404 status + page.
   if (!part) notFound();
   return {
-    title: `${part.name} (#${part.code})`,
-    description: `${part.name} — item code ${part.code}${part.hsn ? `, HSN ${part.hsn}` : ""}. ${formatPrice(part.price)}${part.price != null ? ` ${GST_NOTE}` : ""}. ${STOCK_LABEL[part.stock]}. Order via WhatsApp quote.`,
+    title: `${part.name} (#${part.sku})`,
+    description: `${part.name} — item code ${part.sku}${part.hsn ? `, HSN ${part.hsn}` : ""}. ${formatPrice(part.price)}${part.price != null ? ` ${GST_NOTE}` : ""}. ${STOCK_LABEL[part.stock]}. Order via WhatsApp quote.`,
     alternates: { canonical: `/parts/${part.code}` },
   };
 }
@@ -45,10 +47,11 @@ function related(all: Part[], part: Part): Part[] {
 export default async function PartPage({ params }: Props) {
   const part = await load(params);
   if (!part) notFound();
-  const rel = related(await getParts(), part);
+  const [all, photos] = await Promise.all([getParts(), getPartPhotos(part)]);
+  const rel = related(all, part);
   const withGst = priceWithGst(part);
-  const wa = whatsappLink(`Hello ${SITE.name}, I'd like to ask about:\n${part.name}\nCode ${part.code}`);
-  const quotePart = { code: part.code, name: part.name, price: part.price, gst: part.gst, unit: part.unit };
+  const wa = whatsappLink(`Hello ${SITE.name}, I'd like to ask about:\n${part.name}\nCode ${part.sku}`);
+  const quotePart = { code: part.code, sku: part.sku, name: part.name, price: part.price, gst: part.gst, unit: part.unit };
 
   return (
     <div className="shell page">
@@ -56,21 +59,36 @@ export default async function PartPage({ params }: Props) {
         <ol>
           <li><Link href="/parts">Parts</Link></li>
           <li><Link href={`/parts?cat=${part.cat}`}>{categoryLabel(part.cat)}</Link></li>
-          <li aria-current="page">#{part.code}</li>
+          <li aria-current="page">#{part.sku}</li>
         </ol>
       </nav>
 
       <div className="detail">
         <div className="detail__media">
-          <PartImage part={part} sizes="(max-width: 900px) 100vw, 560px" priority />
+          {photos.length === 0 ? (
+            <PartImage part={part} sizes="(max-width: 900px) 100vw, 560px" priority />
+          ) : (
+            <>
+              {/* Native scroll-snap carousel: swipe on phones, no JS. */}
+              <div className="gallery" tabIndex={0} aria-label={`Photos of ${part.name}`}>
+                {photos.map((url, i) => (
+                  <div className="part-image" key={url}>
+                    <Image src={cld(url, DETAIL_IMAGE_WIDTH)} alt={`${part.name}, photo ${i + 1} of ${photos.length}`} fill sizes="(max-width: 900px) 100vw, 560px" priority={i === 0} unoptimized className="part-image__photo" />
+                  </div>
+                ))}
+              </div>
+              {photos.length > 1 && <p className="gallery__hint">{photos.length} photos · swipe for more</p>}
+            </>
+          )}
         </div>
 
         <div className="detail__info">
           <div className="detail__tags">
-            <CodeTag code={part.code} />
+            <CodeTag code={part.sku} />
             <StockBadge stock={part.stock} />
           </div>
           <h1 className="detail__name">{part.name}</h1>
+          {part.description && <p className="detail__desc">{part.description}</p>}
 
           <div className="detail__price">
             <p className="detail__amount">
@@ -81,7 +99,7 @@ export default async function PartPage({ params }: Props) {
           </div>
 
           <dl className="specs">
-            <div><dt>Item code</dt><dd className="mono">{part.code}</dd></div>
+            <div><dt>Item code</dt><dd className="mono">{part.sku}</dd></div>
             <div><dt>GST</dt><dd>{part.gst != null ? `${part.gst}%` : "—"}</dd></div>
             <div><dt>HSN</dt><dd className="mono">{part.hsn ?? "—"}</dd></div>
             {part.unit && <div><dt>Unit</dt><dd>{part.unit}</dd></div>}

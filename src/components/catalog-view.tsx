@@ -72,7 +72,7 @@ export function CatalogView({ path, filters, defaultSort, results, categoryCount
 
 const WINDOW = 1; // pages shown either side of the current one
 
-function Pagination({ page, pageCount, href }: { page: number; pageCount: number; href: (n: number) => string }) {
+export function Pagination({ page, pageCount, href }: { page: number; pageCount: number; href: (n: number) => string }) {
   const pages = [...new Set([1, ...Array.from({ length: WINDOW * 2 + 1 }, (_, i) => page - WINDOW + i), pageCount])].filter((n) => n >= 1 && n <= pageCount);
   return (
     <nav className="pagination" aria-label="Pagination">

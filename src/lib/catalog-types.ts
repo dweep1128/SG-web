@@ -2,26 +2,33 @@
 import { categoryLabel, type CategorySlug } from "./categories";
 import { PRICE_INCLUDES_GST } from "./site";
 
-// Row shape of public.public_catalog_list(p_busy_code) — see supabase/busy-catalog-list.sql.
-// Server-only: stock_qty is used to derive the stock label and then dropped.
+// Row shape of public.catalog_view — see supabase/sk-image.sql.
+// Server-only: stock is used to derive the stock label and then dropped.
 export type CatalogRow = {
-  busy_code: number;
-  busy_name: string;
+  source: "busy" | "manual";
+  product_key: string;
+  name: string;
+  sku: string;
+  category: string | null; // BUSY group name, or a category slug for manual products
   hsn_code: string | null;
   unit_name: string | null;
   gst_pct: number | null;
-  busy_group_name: string | null;
   price: number | null;
   stock_status: "in_stock" | "ask" | null;
-  stock_qty: number | null;
+  stock: number | null;
   stock_synced_at: string | null;
+  description: string | null;
+  primary_image_url: string | null;
 };
 
 export type StockState = "in" | "low" | "ask";
 
 // Lean public shape. Deliberately has no quantity and no cost field of any kind.
 export type Part = {
-  code: number;
+  code: string; // URL slug: BUSY code as-is ("1291"), manual products "m<id>" ("m12")
+  source: "busy" | "manual";
+  key: string; // product_key in catalog_view / product_media
+  sku: string; // shown to shoppers as the item code
   name: string;
   price: number | null; // null = hidden by visibility flag or zero in BUSY → "Price on request"
   gst: number | null;
@@ -30,7 +37,8 @@ export type Part = {
   stock: StockState;
   cat: CategorySlug;
   syncedAt: string | null;
-  imageUrl: string | null; // always null until Cloudinary photos land
+  description: string | null;
+  imageUrl: string | null; // primary Cloudinary photo (untransformed secure_url)
 };
 
 export const STOCK_LABEL: Record<StockState, string> = {
@@ -56,7 +64,7 @@ export function priceWithGst(part: Pick<Part, "price" | "gst">): number | null {
   return Math.round(part.price * (1 + part.gst / 100) * 100) / 100;
 }
 
-export function partHref(code: number): string {
+export function partHref(code: string): string {
   return `/parts/${code}`;
 }
 

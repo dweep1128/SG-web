@@ -55,7 +55,7 @@ export function QuoteView() {
           {lines.map((l) => (
             <li key={l.code} className="quote-line">
               <div className="quote-line__info">
-                <CodeTag code={l.code} />
+                <CodeTag code={l.sku} />
                 <Link href={partHref(l.code)} className="quote-line__name">{l.name}</Link>
                 <p className="quote-line__price">
                   {formatPrice(l.price)}

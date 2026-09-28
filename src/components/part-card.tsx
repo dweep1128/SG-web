@@ -10,7 +10,7 @@ export function PartCard({ part, index = 0, highlight }: { part: Part; index?: n
       <PartImage part={part} />
       <div className="part-card__body">
         <div className="part-card__meta">
-          <CodeTag code={part.code} />
+          <CodeTag code={part.sku} />
           <span className="part-card__cat">{categoryLabel(part.cat)}</span>
         </div>
         <h3 className="part-card__name">

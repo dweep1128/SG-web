@@ -6,7 +6,7 @@ import { normalize } from "../src/lib/normalize.ts";
 import { buildIndex, highlight, search, suggest, type SearchDoc } from "../src/lib/search.ts";
 
 // Hand-made fixture, shaped like real names (double spaces, punctuation). Not real stock or prices.
-const doc = (code: number, name: string, hsn: string, cat: SearchDoc["cat"]): SearchDoc => ({ code, name, hsn, cat, price: 100, stock: "in" });
+const doc = (code: number, name: string, hsn: string, cat: SearchDoc["cat"]): SearchDoc => ({ code: String(code), sku: String(code), name, hsn, cat, price: 100, stock: "in" });
 const docs: SearchDoc[] = [
   doc(1291, "CHARGER  60V", "8504", "chargers"),
   doc(1340, "CHARGER 60V 3AMP", "8504", "chargers"),
@@ -18,7 +18,7 @@ const docs: SearchDoc[] = [
   doc(1583, "REAR BRAKE CABLE", "8714", "brakes"),
 ];
 const index = buildIndex(docs);
-const codes = (q: string) => search(index, q).map((d) => d.code);
+const codes = (q: string) => search(index, q).map((d) => Number(d.code));
 
 // normalisation
 assert.equal(normalize("CHARGER  60 V / 3-AMP"), "charger 60v 3amp");
@@ -38,6 +38,10 @@ assert.ok(codes("brakes").includes(1583), "category label search");
 assert.ok(codes("disc pump l/r").includes(1378), "punctuation ignored");
 assert.ok(codes("thrttle").includes(1683), "one-letter typo");
 assert.deepEqual(codes("   "), []);
+
+// manual products: slug "m<id>", found first by exact SKU (case-insensitive)
+const withManual = buildIndex([...docs, { ...doc(0, "SIDE MIRROR PAIR", "", "controls"), code: "m7", sku: "MIR77" }]);
+assert.equal(search(withManual, "mir77")[0].code, "m7", "exact manual SKU first");
 
 // no-results path still suggests something close
 assert.equal(codes("charger 72v").length, 0);

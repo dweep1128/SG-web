@@ -4,7 +4,7 @@ import type { Part } from "@/lib/catalog-types";
 import { addToQuote, clampQty, MAX_QTY, MIN_QTY } from "@/lib/quote";
 import { toast } from "./toast";
 
-type QuotePart = Pick<Part, "code" | "name" | "price" | "gst" | "unit">;
+type QuotePart = Pick<Part, "code" | "sku" | "name" | "price" | "gst" | "unit">;
 
 function added(part: QuotePart, qty: number) {
   addToQuote(part, qty);
