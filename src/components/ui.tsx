@@ -69,11 +69,13 @@ export function Skeleton({ width = "100%", height = 16, className }: { width?: n
   return <div className={["skeleton", className].filter(Boolean).join(" ")} style={{ width, height }} aria-hidden="true" />;
 }
 
-export function EmptyState({ icon, title, children, actions }: { icon?: ReactNode; title: string; children?: ReactNode; actions?: ReactNode }) {
+// headingLevel 1 when the empty state IS the page (404), so the page still has an <h1>.
+export function EmptyState({ icon, title, children, actions, headingLevel = 2 }: { icon?: ReactNode; title: string; children?: ReactNode; actions?: ReactNode; headingLevel?: 1 | 2 }) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   return (
     <div className="empty">
       {icon && <div className="empty__icon">{icon}</div>}
-      <h2>{title}</h2>
+      <Heading>{title}</Heading>
       {children && <div className="empty__body">{children}</div>}
       {actions && <div className="empty__actions">{actions}</div>}
     </div>

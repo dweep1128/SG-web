@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/category-icon";
 import { countByCategory } from "@/components/catalog-view";
@@ -10,6 +11,7 @@ import type { Part } from "@/lib/catalog-types";
 import { SITE, whatsappLink } from "@/lib/site";
 
 export const revalidate = 300;
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 const POPULAR_COUNT = 8;
 

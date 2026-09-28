@@ -19,7 +19,7 @@ export function PortalNav() {
   return (
     <header className="site-header sk-nav">
       <div className="shell sk-nav__inner">
-        <Link href="/sk-image" className="brand" aria-label="SK-image home">
+        <Link href="/sk-image" className="brand">
           <span className="brand__mark" aria-hidden="true">{SITE.shortName}</span>
           <span className="brand__name">SK-image</span>
         </Link>

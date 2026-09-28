@@ -8,7 +8,7 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="shell site-header__inner">
-        <Link href="/" className="brand" aria-label={`${SITE.name} home`}>
+        <Link href="/" className="brand">
           <span className="brand__mark" aria-hidden="true">{SITE.shortName}</span>
           <span className="brand__name">{SITE.name}</span>
         </Link>

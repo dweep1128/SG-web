@@ -10,6 +10,7 @@ export default function NotFound() {
       <EmptyState
         icon={<span className="not-found__code" aria-hidden="true">404</span>}
         title="This part isn't on the shelf"
+        headingLevel={1}
         actions={<ButtonLink href="/parts" variant="primary">Browse all parts</ButtonLink>}
       >
         The page or part code you opened doesn&apos;t exist, or the item is no longer listed. Try a search instead:
