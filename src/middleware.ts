@@ -7,6 +7,12 @@ const LOGIN = "/sk-image/login";
 const HOME = "/sk-image";
 
 export async function middleware(req: NextRequest) {
+  // CSRF: portal writes must come from this site. (Auth cookies are SameSite=Lax too; this is the second lock.)
+  const origin = req.headers.get("origin");
+  if (req.method !== "GET" && req.method !== "HEAD" && origin && origin !== req.nextUrl.origin) {
+    return NextResponse.json({ error: "Cross-site request refused" }, { status: 403 });
+  }
+
   let res = NextResponse.next({ request: req });
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_KEY, {
     cookies: {

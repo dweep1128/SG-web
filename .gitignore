@@ -1,7 +1,6 @@
 node_modules/
 .next/
 .env*.local
-!.env.example
 npm-debug.log*
 
 # BUSY API reference material (docs, Postman collection, sample code, PDFs) — never commit
@@ -27,3 +26,5 @@ docs/busy-schema-report.md
 
 .vercel
 .env*
+# ...except the template (a later ".env*" would otherwise re-ignore it)
+!.env.example

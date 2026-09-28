@@ -1,8 +1,11 @@
 import { signUpload } from "@/lib/cloudinary-server";
 import { isProductRef, MAX_PHOTOS } from "@/lib/sk-image";
+import { serverError } from "@/lib/sk-image-server";
 import { requireStaff } from "@/lib/supabase-server";
 
 // Returns a one-off signature so the browser uploads straight to Cloudinary. The API secret stays here.
+// Signed params pin the folder (sk-image/<source>/<key>) and formats (jpg/png/webp); file size is capped by the
+// client (10 MB) and by the Cloudinary account's own upload limit.
 export async function POST(req: Request) {
   const supabase = await requireStaff();
   if (!supabase) return Response.json({ error: "Not signed in" }, { status: 401 });
@@ -10,14 +13,22 @@ export async function POST(req: Request) {
   const { source, key } = await req.json().catch(() => ({}));
   if (!isProductRef(source, key)) return Response.json({ error: "Bad product" }, { status: 400 });
 
+  // Only sign for products that exist, so the folder can't be filled with junk keys.
+  const product =
+    source === "busy"
+      ? await supabase.from("catalog_view").select("product_key", { count: "exact", head: true }).eq("source", "busy").eq("product_key", key)
+      : await supabase.from("products_manual").select("id", { count: "exact", head: true }).eq("id", key);
+  if (product.error) return serverError("Checking the product", product.error);
+  if (!product.count) return Response.json({ error: "Product not found" }, { status: 404 });
+
   // Refuse before uploading so a full product doesn't leave orphan files in Cloudinary. The DB trigger is the hard stop.
   const { count, error } = await supabase.from("product_media").select("id", { count: "exact", head: true }).eq("source", source).eq("product_key", key);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) return serverError("Counting photos", error);
   if ((count ?? 0) >= MAX_PHOTOS) return Response.json({ error: `This product already has ${MAX_PHOTOS} photos` }, { status: 409 });
 
   try {
     return Response.json(signUpload(`sk-image/${source}/${key}`));
   } catch (e) {
-    return Response.json({ error: (e as Error).message }, { status: 500 });
+    return serverError("Starting the upload", e);
   }
 }
