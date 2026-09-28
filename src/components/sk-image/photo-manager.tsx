@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CARD_IMAGE_WIDTH, cld } from "@/lib/cloudinary";
-import { fileToJpeg, MAX_PHOTOS, saveMedia, uploadToCloudinary, type Media, type Source } from "@/lib/sk-image";
+import { discardUpload, fileToJpeg, MAX_PHOTOS, refreshSite, saveMedia, uploadToCloudinary, type Media, type Source } from "@/lib/sk-image";
 import { browserSupabase } from "@/lib/supabase";
 import { toast, toastError } from "../toast";
 import { Badge, Button, CodeTag, EmptyState } from "../ui";
@@ -32,8 +32,9 @@ export function PhotoManager({ source, productKey, name, sku, siteHref, initialM
 
   const patchShot = (id: number, patch: Partial<Shot>) => setShots((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
-  // Upload queue: at most PARALLEL_UPLOADS at once. Cloudinary result is kept on the shot, so a failed DB save
-  // retries without uploading the file again.
+  // Upload queue: at most PARALLEL_UPLOADS at once. If the DB save fails after the Cloudinary upload, the file is
+  // removed from Cloudinary (no orphans) and a retry uploads again; if even that cleanup can't reach the server
+  // (offline), the upload is kept so the retry only has to save it.
   useEffect(() => {
     const free = PARALLEL_UPLOADS - running.current.size;
     for (const shot of shots.filter((s) => s.status === "queued" && !running.current.has(s.id)).slice(0, Math.max(0, free))) {
@@ -47,7 +48,9 @@ export function PhotoManager({ source, productKey, name, sku, siteHref, initialM
           running.current.delete(shot.id);
           setMedia((list) => [...list, saved]);
           patchShot(shot.id, { status: "done", uploaded });
+          refreshSite();
         } catch (e) {
+          if (uploaded && (await discardUpload(uploaded.public_id))) uploaded = undefined;
           running.current.delete(shot.id);
           patchShot(shot.id, { status: "failed", uploaded, error: (e as Error).message });
           toastError(`Upload failed: ${(e as Error).message}`);
@@ -79,9 +82,9 @@ export function PhotoManager({ source, productKey, name, sku, siteHref, initialM
   }
 
   const retry = (id: number) => patchShot(id, { status: "queued" });
-  // ponytail: discarding after the Cloudinary step leaves an orphan asset; add a cleanup call if that ever matters.
   function discard(id: number) {
     const shot = shots.find((s) => s.id === id);
+    if (shot?.uploaded) void discardUpload(shot.uploaded.public_id);
     if (shot) URL.revokeObjectURL(shot.preview);
     setShots((list) => list.filter((s) => s.id !== id));
   }
@@ -113,6 +116,7 @@ export function PhotoManager({ source, productKey, name, sku, siteHref, initialM
     setBusyId(null);
     if (on.error) return toastError(`Could not set cover: ${on.error.message}`);
     setMedia((list) => list.map((x) => ({ ...x, is_primary: x.id === m.id })));
+    refreshSite();
     toast("Cover photo set");
   }
 
@@ -127,6 +131,7 @@ export function PhotoManager({ source, productKey, name, sku, siteHref, initialM
     setBusyId(null);
     if (second.error) return toastError(`Could not reorder: ${second.error.message}`);
     setMedia((list) => list.map((x) => (x.id === a.id ? { ...x, sort_order: b.sort_order } : x.id === b.id ? { ...x, sort_order: a.sort_order } : x)));
+    refreshSite();
   }
 
   async function remove(m: Media) {

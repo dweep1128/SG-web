@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { CATEGORIES, isCategorySlug } from "@/lib/categories";
-import { photosHref, type ManualProduct } from "@/lib/sk-image";
+import { photosHref, refreshSite, type ManualProduct } from "@/lib/sk-image";
 import { browserSupabase } from "@/lib/supabase";
 import { toast, toastError } from "../toast";
 import { Button, Input, Textarea } from "../ui";
@@ -57,6 +57,7 @@ export function ProductForm({ product }: { product: ManualProduct | null }) {
       toastError(msg);
       return;
     }
+    refreshSite();
     toast(product ? "Product saved" : "Product added");
     router.push(photosHref("manual", String(res.data.id)));
   }
@@ -99,8 +100,33 @@ export function ToggleActive({ id, active }: { id: number; active: boolean }) {
     const { error } = await browserSupabase().from("products_manual").update({ is_active: !active }).eq("id", id);
     setBusy(false);
     if (error) return toastError(error.message);
+    refreshSite();
     toast(active ? "Product disabled" : "Product enabled");
     router.refresh();
   }
   return <Button size="sm" onClick={flip} disabled={busy}>{active ? "Disable" : "Enable"}</Button>;
+}
+
+// Permanent: removes the product's photos from Cloudinary, their rows, then the product. Disable is the undoable option.
+export function DeleteProduct({ id, name }: { id: number; name: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  async function remove() {
+    if (!window.confirm(`Delete "${name}" permanently?
+
+Its photos are deleted too. This cannot be undone. (To just hide it from the website, use Disable.)`)) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/sk-image/delete-product", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Delete failed");
+      toast("Product deleted");
+      router.replace("/sk-image/add");
+      router.refresh();
+    } catch (e) {
+      toastError((e as Error).message);
+      setBusy(false);
+    }
+  }
+  return <Button size="sm" className="sk-danger" onClick={remove} disabled={busy}>{busy ? "Deleting…" : "Delete"}</Button>;
 }

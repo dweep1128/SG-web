@@ -67,6 +67,29 @@ export async function saveMedia(supabase: SupabaseClient, source: Source, key: s
     .insert({ source, product_key: key, cloudinary_public_id: up.public_id, url: up.secure_url })
     .select()
     .single();
+  // Unique violation on retry = an earlier attempt did save (its response was lost). Treat as success.
+  if (error?.code === "23505") {
+    const again = await supabase.from("product_media").select("*").eq("source", source).eq("product_key", key).eq("cloudinary_public_id", up.public_id).single();
+    if (!again.error) return again.data as Media;
+  }
   if (error) throw new Error(error.message);
   return data as Media;
+}
+
+async function postJson(url: string, body: unknown = {}): Promise<Response> {
+  return fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+}
+
+// Removes an uploaded file that never made it into product_media. true = gone (so a retry must upload again).
+export async function discardUpload(publicId: string): Promise<boolean> {
+  try {
+    return (await postJson("/api/sk-image/delete", { publicId })).ok;
+  } catch {
+    return false; // offline: keep it, the retry can still save it
+  }
+}
+
+// Makes the public site show a change now instead of after its 5-minute cache. Best effort: the cache expires anyway.
+export function refreshSite(): void {
+  postJson("/api/sk-image/revalidate").catch(() => {});
 }

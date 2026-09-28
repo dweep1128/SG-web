@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ProductForm, ToggleActive } from "@/components/sk-image/product-form";
+import { DeleteProduct, ProductForm, ToggleActive } from "@/components/sk-image/product-form";
 import { Badge, ButtonLink, CodeTag, EmptyState } from "@/components/ui";
 import { formatPrice } from "@/lib/catalog-types";
 import { photosHref, type ManualProduct } from "@/lib/sk-image";
@@ -44,6 +44,7 @@ export default async function AddProductPage({ searchParams }: Props) {
                   <ButtonLink size="sm" href={`/sk-image/add?edit=${p.id}`}>Edit</ButtonLink>
                   <ButtonLink size="sm" href={photosHref("manual", String(p.id))}>Photos</ButtonLink>
                   <ToggleActive id={p.id} active={p.is_active} />
+                  <DeleteProduct id={p.id} name={p.name} />
                 </div>
               </li>
             ))}

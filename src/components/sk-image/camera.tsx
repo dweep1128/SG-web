@@ -83,9 +83,34 @@ export function Camera({ shots, canShoot, remaining, onShot, onRetry, onDiscard,
     }
   }
 
-  function close() {
+  // Returns false if the user chose to stay.
+  function confirmClose(): boolean {
     const inFlight = shots.filter((s) => s.status === "queued" || s.status === "uploading").length;
-    if (inFlight && !window.confirm(`${inFlight} photo${inFlight === 1 ? " is" : "s are"} still uploading. They keep going after you close the camera, but stay on this page until they finish. Close the camera?`)) return;
+    return !inFlight || window.confirm(`${inFlight} photo${inFlight === 1 ? " is" : "s are"} still uploading. They keep going after you close the camera, but stay on this page until they finish. Close the camera?`);
+  }
+
+  // Phone Back button: the camera owns one history entry, so Back closes the camera (same warning) instead of
+  // leaving the page and killing uploads. Next.js keeps its router state on native pushState, so this is safe.
+  const leaving = useRef(false);
+  const confirmCloseRef = useRef(confirmClose);
+  confirmCloseRef.current = confirmClose;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    window.history.pushState(null, "", window.location.href);
+    const onBack = () => {
+      if (leaving.current) return;
+      if (confirmCloseRef.current()) onCloseRef.current();
+      else window.history.pushState(null, "", window.location.href); // stayed: re-arm Back
+    };
+    window.addEventListener("popstate", onBack);
+    return () => window.removeEventListener("popstate", onBack);
+  }, []);
+
+  function close() {
+    if (!confirmClose()) return;
+    leaving.current = true;
+    window.history.back(); // drop the camera's history entry
     onClose();
   }
 
