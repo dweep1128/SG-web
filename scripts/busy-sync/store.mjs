@@ -1,7 +1,8 @@
 // Where sync results go. Two stores with the same shape:
 //  - local (dry-run): simulates the busy_items / sync_runs tables as files under SYNC_DATA_DIR. No network.
 //  - supabase (live): writes busy_items + sync_runs with the service role key. Server-side only.
-// The sync owns busy_items outright and never writes public.products (see supabase/busy-sync.sql).
+// The sync owns busy_items except the staff columns display_name / description / hidden, which it never sends
+// (upserts only touch the columns in the payload), and never writes public.products (see supabase/busy-sync.sql).
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -9,7 +10,7 @@ const UPSERT_CHUNK = 500;
 const READ_PAGE = 1000; // PostgREST default max rows per request
 // Columns the sync needs back from the last run to plan the next one (stamps, sanity baselines, counts).
 const STATE_COLUMNS =
-  "busy_code, busy_name, busy_stamp, busy_group_code, busy_group_name, sale_price, is_active, busy_blocked, busy_deactivated, missing_from_busy, exclude_from_catalog";
+  "busy_code, busy_name, busy_stamp, busy_group_code, busy_group_name, sale_price, price_visible, is_active, busy_blocked, busy_deactivated, missing_from_busy, exclude_from_catalog, stock_qty, stock_visible";
 
 const chunks = (list, size) => Array.from({ length: Math.ceil(list.length / size) }, (_, i) => list.slice(i * size, (i + 1) * size));
 
@@ -61,7 +62,7 @@ export function createLocalStore(dir) {
       for (const s of stock?.rows ?? []) {
         const r = byCode.get(s.busy_code);
         if (!r) continue; // same as the live RPC: stock never creates an item row
-        Object.assign(r, { stock_qty: s.stock_qty, stock_synced_at: stock.synced_at, stock_visible: stock.visible });
+        Object.assign(r, { stock_qty: s.stock_qty, stock_synced_at: stock.synced_at, stock_visible: stock.visible, last_synced_at: stock.synced_at });
         stockUpdated++;
       }
       await mkdir(dir, { recursive: true });
@@ -71,9 +72,17 @@ export function createLocalStore(dir) {
       return { stock_updated: stockUpdated };
     },
 
+    /** Returns the previous run's status, like the live record_sync_run(). */
     async recordRun(run) {
+      let prev = null;
+      try {
+        prev = JSON.parse((await readFile(runsPath, "utf8")).trim().split("\n").at(-1)).status;
+      } catch {
+        // No earlier run.
+      }
       await mkdir(dir, { recursive: true });
       await appendFile(runsPath, JSON.stringify(run) + "\n");
+      return prev;
     },
   };
 }
@@ -100,7 +109,7 @@ export async function createSupabaseStore({ supabaseUrl, serviceKey }) {
     },
 
     async loadLastSuccessfulItemCounts() {
-      const res = await db.from("sync_runs").select("counts").eq("status", "OK").in("job", ["items", "full"]).order("finished_at", { ascending: false }).limit(1);
+      const res = await db.from("sync_runs").select("counts").eq("status", "OK").in("job", ["items", "full", "delta"]).not("counts->items", "is", null).order("finished_at", { ascending: false }).limit(1);
       check("read sync_runs", res);
       return res.data[0]?.counts?.items ?? null;
     },
@@ -119,9 +128,11 @@ export async function createSupabaseStore({ supabaseUrl, serviceKey }) {
       return { stock_updated: res.data };
     },
 
+    /** Updates sync_status, logs to sync_runs when worth keeping (see record_sync_run), returns the previous status. */
     async recordRun(run) {
-      const { job, status, started_at, finished_at, duration_ms, busy_db, counts, details, error } = run;
-      check("insert sync_runs", await db.from("sync_runs").insert({ job, status, started_at, finished_at, duration_ms, busy_db, counts, details, error }));
+      const res = await db.rpc("record_sync_run", { p_run: run });
+      check("record_sync_run", res);
+      return res.data;
     },
   };
 }

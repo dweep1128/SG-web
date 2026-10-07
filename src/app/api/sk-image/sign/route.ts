@@ -13,11 +13,8 @@ export async function POST(req: Request) {
   const { source, key } = await req.json().catch(() => ({}));
   if (!isProductRef(source, key)) return Response.json({ error: "Bad product" }, { status: 400 });
 
-  // Only sign for products that exist, so the folder can't be filled with junk keys.
-  const product =
-    source === "busy"
-      ? await supabase.from("catalog_view").select("product_key", { count: "exact", head: true }).eq("source", "busy").eq("product_key", key)
-      : await supabase.from("products_manual").select("id", { count: "exact", head: true }).eq("id", key);
+  // Only sign for products that exist, so the folder can't be filled with junk keys. admin_catalog includes hidden ones.
+  const product = await supabase.from("admin_catalog").select("product_key", { count: "exact", head: true }).eq("source", source).eq("product_key", key);
   if (product.error) return serverError("Checking the product", product.error);
   if (!product.count) return Response.json({ error: "Product not found" }, { status: 404 });
 

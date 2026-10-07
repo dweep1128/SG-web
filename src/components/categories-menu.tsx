@@ -43,6 +43,7 @@ export function CategoriesMenu() {
             </li>
           ))}
         </ul>
+        <Link href="/consultancy" className="cat-menu__all cat-menu__extra">Automation consultancy →</Link>
       </nav>
     </details>
   );

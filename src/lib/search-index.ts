@@ -3,12 +3,12 @@
 import type { CategorySlug } from "./categories";
 import type { SearchDoc } from "./search";
 
-type Tuple = [code: string, sku: string, name: string, price: number | null, hsn: string | null, stock: SearchDoc["stock"], cat: CategorySlug];
+type Tuple = [code: string, sku: string, name: string, price: number | null, hsn: string | null, stock: SearchDoc["stock"], cat: CategorySlug, altName: string | null];
 
 export function encodeSearchIndex(docs: SearchDoc[]): Tuple[] {
-  return docs.map((d) => [d.code, d.sku, d.name, d.price, d.hsn, d.stock, d.cat]);
+  return docs.map((d) => [d.code, d.sku, d.name, d.price, d.hsn, d.stock, d.cat, d.altName ?? null]);
 }
 
 export function decodeSearchIndex(rows: Tuple[]): SearchDoc[] {
-  return rows.map(([code, sku, name, price, hsn, stock, cat]) => ({ code, sku, name, price, hsn, stock, cat }));
+  return rows.map(([code, sku, name, price, hsn, stock, cat, altName]) => ({ code, sku, name, altName, price, hsn, stock, cat }));
 }

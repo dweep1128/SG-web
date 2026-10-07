@@ -2,8 +2,8 @@
 import { categoryLabel, type CategorySlug } from "./categories";
 import { PRICE_INCLUDES_GST } from "./site";
 
-// Row shape of public.catalog_view — see supabase/sk-image.sql.
-// Server-only: stock is used to derive the stock label and then dropped.
+// Row shape of public.catalog_view — see supabase/stock-status-only.sql. The view has no quantity column at all:
+// stock_status is computed in the database, so an exact count never leaves Supabase.
 export type CatalogRow = {
   source: "busy" | "manual";
   product_key: string;
@@ -14,14 +14,20 @@ export type CatalogRow = {
   unit_name: string | null;
   gst_pct: number | null;
   price: number | null;
-  stock_status: "in_stock" | "ask" | null;
-  stock: number | null;
+  stock_status: "in_stock" | "low_stock" | "out_of_stock" | "ask" | null; // ask = stock not verified yet
   stock_synced_at: string | null;
   description: string | null;
+  display_name: string | null; // staff override, null when blank
+  source_name: string; // BUSY name (busy) or the portal product's own name (manual)
   primary_image_url: string | null;
 };
 
-export type StockState = "in" | "low" | "ask";
+// The one rule for what a customer sees as a product's name: staff display_name if set, else the BUSY (or portal) name.
+export function getDisplayName(p: { display_name?: string | null; busy_name?: string; name?: string }): string {
+  return (p.display_name?.trim() || p.busy_name || p.name || "").replace(/\s+/g, " ").trim();
+}
+
+export type StockState = "in" | "low" | "out" | "ask";
 
 // Lean public shape. Deliberately has no quantity and no cost field of any kind.
 export type Part = {
@@ -30,6 +36,7 @@ export type Part = {
   key: string; // product_key in catalog_view / product_media
   sku: string; // shown to shoppers as the item code
   name: string;
+  altName: string | null; // BUSY name when a display name replaces it; search-only, never shown
   price: number | null; // null = hidden by visibility flag or zero in BUSY → "Price on request"
   gst: number | null;
   hsn: string | null;
@@ -44,8 +51,11 @@ export type Part = {
 export const STOCK_LABEL: Record<StockState, string> = {
   in: "In stock",
   low: "Low stock",
+  out: "Out of stock",
   ask: "Check availability",
 };
+
+export const isInStock = (s: StockState) => s === "in" || s === "low";
 
 const inrWhole = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const inrPaise = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2, maximumFractionDigits: 2 });

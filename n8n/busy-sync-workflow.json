@@ -1,0 +1,441 @@
+{
+  "id": "skBusyLiveSync01",
+  "name": "SK Traders - BUSY live sync",
+  "nodes": [
+    {
+      "id": "every-60-s",
+      "name": "Every 60 s",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 60
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "run-delta-sync",
+      "name": "Run delta sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SYNC_RUNNER_URL }}/run/delta",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SYNC_RUNNER_TOKEN }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 55000
+        }
+      }
+    },
+    {
+      "id": "check-delta-result",
+      "name": "Check delta result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Runner reply -> problem code. 200 = OK, 409 = previous run still going (fine), anything else or no reply = problem.\nreturn $input.all().map(({ json }) => {\n  const body = json.body ?? {};\n  let problem = null;\n  if (json.error || json.statusCode == null) problem = 'RUNNER_UNREACHABLE';\n  else if (json.statusCode !== 200 && json.statusCode !== 409) problem = body.status || `HTTP_${json.statusCode}`;\n  const detail = problem === 'RUNNER_UNREACHABLE' ? 'n8n could not reach the sync runner (is sync:server running?)' : (body.error || '');\n  return { json: { check: 'delta', problem, message: `SK Traders delta sync failed: ${problem} - ${detail}`.slice(0, 900) } };\n});"
+      }
+    },
+    {
+      "id": "nightly-full-sync",
+      "name": "Nightly full sync",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 20 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "run-full-sync",
+      "name": "Run full sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        220
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SYNC_RUNNER_URL }}/run/full",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SYNC_RUNNER_TOKEN }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 600000
+        }
+      }
+    },
+    {
+      "id": "check-full-result",
+      "name": "Check full result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        220
+      ],
+      "parameters": {
+        "jsCode": "// Runner reply -> problem code. 200 = OK, 409 = previous run still going (fine), anything else or no reply = problem.\nreturn $input.all().map(({ json }) => {\n  const body = json.body ?? {};\n  let problem = null;\n  if (json.error || json.statusCode == null) problem = 'RUNNER_UNREACHABLE';\n  else if (json.statusCode !== 200 && json.statusCode !== 409) problem = body.status || `HTTP_${json.statusCode}`;\n  const detail = problem === 'RUNNER_UNREACHABLE' ? 'n8n could not reach the sync runner (is sync:server running?)' : (body.error || '');\n  return { json: { check: 'full', problem, message: `SK Traders full sync failed: ${problem} - ${detail}`.slice(0, 900) } };\n});"
+      }
+    },
+    {
+      "id": "every-5-min",
+      "name": "Every 5 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        440
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "get-site-sync-status",
+      "name": "Get site sync status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        440
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SITE_URL }}/api/sync-status",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "check-freshness",
+      "name": "Check freshness",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        440
+      ],
+      "parameters": {
+        "jsCode": "// Website health endpoint -> STALE when no successful BUSY sync for STALE_ALERT_MINUTES (default 10).\nconst maxAgeS = Number($env.STALE_ALERT_MINUTES || 10) * 60;\nreturn $input.all().map(({ json }) => {\n  const b = json.body ?? {};\n  let problem = null;\n  if (json.error || json.statusCode !== 200) problem = `SITE_STATUS_${json.statusCode ?? 'UNREACHABLE'}`;\n  else if (b.age_seconds == null) problem = 'NEVER_SYNCED';\n  else if (b.age_seconds > maxAgeS) problem = 'STALE';\n  const message = problem === 'STALE'\n    ? `SK Traders: no successful BUSY sync for ${Math.round(b.age_seconds / 60)} min (last success ${b.last_success_at}, last status ${b.status}). The website is showing older stock/prices.`\n    : `SK Traders: website sync status check failed (${problem}).`;\n  return { json: { check: 'stale', problem, message } };\n});"
+      }
+    },
+    {
+      "id": "alert-needed-",
+      "name": "Alert needed?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        220
+      ],
+      "parameters": {
+        "jsCode": "// Alert only when a check's problem appears or changes (plus an \"OK again\" note when it clears), not every minute.\n// ALERT_REPEAT_MINUTES > 0 re-sends a still-open problem that often. ALERT_QUIET_HOURS=\"21-9\" (workflow timezone)\n// holds alerts overnight when the shop PC is normally off; a problem still open after that is sent then.\n// Static data persists only for the ACTIVE workflow (not manual test runs).\nconst state = $getWorkflowStaticData('global');\nconst repeatMs = Number($env.ALERT_REPEAT_MINUTES || 0) * 60000;\nconst [qs, qe] = String($env.ALERT_QUIET_HOURS || '').split('-').map((n) => parseInt(n, 10));\nconst h = $now.hour;\nconst quiet = Number.isInteger(qs) && Number.isInteger(qe) && (qs <= qe ? h >= qs && h < qe : h >= qs || h < qe);\nconst now = Date.now();\nconst out = [];\nfor (const { json } of $input.all()) {\n  const prev = state[json.check] ?? { problem: null, at: 0 };\n  if (json.problem) {\n    const due = prev.problem !== json.problem || (repeatMs > 0 && now - prev.at >= repeatMs);\n    if (due && !quiet) {\n      out.push({ json: { text: json.message } });\n      state[json.check] = { problem: json.problem, at: now };\n    }\n  } else if (prev.problem) {\n    out.push({ json: { text: `SK Traders ${json.check} check is OK again (was ${prev.problem}).` } });\n    state[json.check] = { problem: null, at: now };\n  }\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "email-or-webhook",
+      "name": "Email or webhook?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        980,
+        220
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $env.ALERT_CHANNEL }}",
+              "rightValue": "email",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "send-alert-email",
+      "name": "Send alert email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1220,
+        120
+      ],
+      "parameters": {
+        "fromEmail": "={{ $env.ALERT_EMAIL_FROM }}",
+        "toEmail": "={{ $env.ALERT_EMAIL_TO }}",
+        "subject": "SK Traders website sync alert",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "send-alert-webhook",
+      "name": "Send alert webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        320
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "={{ $env.ALERT_WEBHOOK_URL.includes('{text}') ? 'GET' : 'POST' }}",
+        "url": "={{ $env.ALERT_WEBHOOK_URL.replace('{text}', encodeURIComponent($json.text)) }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.text }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 60 s": {
+      "main": [
+        [
+          {
+            "node": "Run delta sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run delta sync": {
+      "main": [
+        [
+          {
+            "node": "Check delta result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check delta result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nightly full sync": {
+      "main": [
+        [
+          {
+            "node": "Run full sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run full sync": {
+      "main": [
+        [
+          {
+            "node": "Check full result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check full result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 5 min": {
+      "main": [
+        [
+          {
+            "node": "Get site sync status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get site sync status": {
+      "main": [
+        [
+          {
+            "node": "Check freshness",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check freshness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check delta result": {
+      "main": [
+        [
+          {
+            "node": "Alert needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check full result": {
+      "main": [
+        [
+          {
+            "node": "Alert needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check freshness": {
+      "main": [
+        [
+          {
+            "node": "Alert needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert needed?": {
+      "main": [
+        [
+          {
+            "node": "Email or webhook?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email or webhook?": {
+      "main": [
+        [
+          {
+            "node": "Send alert email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send alert webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  }
+}

@@ -1,0 +1,67 @@
+/* /consultancy — "shop register" look: ink + ruled ledger paper, mono entry tags, one volt highlight.
+   Uses the site's tokens (globals.css) and fonts; nothing here ships to other pages. Mobile-first. */
+.cx h1 { font-size: clamp(3rem, 15vw, 6.5rem); line-height: 0.92; }
+.cx h2 { font-size: clamp(2rem, 8vw, 3.25rem); margin-top: 10px; }
+.cx h3 { font-size: 1.5rem; line-height: 1; }
+.cx-sec { padding-block: 56px; }
+.cx-tag { display: inline-block; font: 600 0.72rem/1 var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 8px; border: 1.5px solid currentColor; border-radius: 3px; }
+.cx-tag--red { color: var(--danger); }
+
+/* Hero: ink, ruled like a register page. */
+.cx-hero { background: var(--ink); color: #fff; background-image: repeating-linear-gradient(to bottom, transparent 0 39px, rgb(255 255 255 / 0.06) 39px 40px); }
+.cx-hero__in { padding-block: 64px 72px; display: grid; gap: 22px; justify-items: start; }
+.cx-hero .cx-tag { color: var(--accent); }
+.cx-hero mark { background: var(--accent); color: var(--ink); padding: 0 0.12em; margin-inline: -0.04em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.cx-hero__sub { max-width: 34ch; font-size: 1.15rem; color: #dfe5e1; margin: 0; }
+.cx-hero__cta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.cx-note { font: 500 0.8rem/1.3 var(--font-mono); color: #b9c2bd; }
+
+/* Problem: ledger paper with a red margin rule. */
+.cx-ledger { list-style: none; margin: 28px 0 0; padding: 0 0 0 18px; border-left: 2px solid var(--danger); display: grid; gap: 0; }
+.cx-ledger li { padding: 20px 0 20px 16px; border-bottom: 1px solid var(--line-strong); display: grid; gap: 8px; justify-items: start; }
+.cx-ledger li:last-child { border-bottom: 0; }
+.cx-ledger p, .cx-cards p, .cx-steps p, .cx-contact p { margin: 0; max-width: 52ch; color: var(--ink-soft); }
+
+/* Services. */
+.cx-band { background: var(--brand-tint); border-block: 1px solid var(--line); }
+.cx-cards { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 14px; }
+.cx-cards li { background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--brand); border-radius: var(--radius-sm); padding: 18px; display: grid; gap: 10px; align-content: start; transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease); }
+.cx-cards li:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
+.cx-code { font: 600 0.8rem/1 var(--font-mono); color: var(--brand); }
+
+/* Steps: big condensed numerals on a rail. */
+.cx-steps { list-style: none; counter-reset: step; margin: 28px 0 0; padding: 0; display: grid; gap: 0; }
+.cx-steps li { counter-increment: step; position: relative; padding: 0 0 28px 64px; display: grid; gap: 6px; }
+.cx-steps li::before { content: counter(step, decimal-leading-zero); position: absolute; left: 0; top: -4px; font: 800 2.6rem/1 var(--font-display); color: var(--brand); }
+.cx-steps li::after { content: ""; position: absolute; left: 22px; top: 44px; bottom: 6px; width: 2px; background: var(--line-strong); }
+.cx-steps li:last-child { padding-bottom: 0; }
+.cx-steps li:last-child::after { display: none; }
+
+/* Proof. */
+.cx-proof { list-style: none; margin: 28px 0 0; padding: 0; display: grid; gap: 14px; }
+.cx-proof li { border: 1.5px solid var(--ink); border-radius: var(--radius-sm); padding: 18px; display: grid; gap: 10px; justify-items: start; background: var(--surface); }
+.cx-proof p { margin: 0; }
+.cx-proof__result { font-weight: 600; font-size: 1.1rem; }
+
+/* Contact. */
+.cx-contact { background: var(--brand); color: #fff; }
+.cx-contact__in { padding-block: 64px; display: grid; gap: 16px; justify-items: start; }
+.cx-contact p { color: #e2f0e8; }
+.cx-link { color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; min-height: 44px; display: inline-flex; align-items: center; }
+.cx-link:hover { color: var(--accent); }
+
+@media (min-width: 760px) {
+  .cx-hero__in { padding-block: 104px 112px; }
+  .cx-sec { padding-block: 88px; }
+  .cx-ledger { grid-template-columns: repeat(3, 1fr); border-left: 0; padding: 0; border-top: 2px solid var(--danger); }
+  .cx-ledger li { padding: 22px 22px 0 0; border-bottom: 0; }
+  .cx-cards { grid-template-columns: repeat(2, 1fr); }
+  .cx-proof { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1000px) {
+  .cx-cards { grid-template-columns: repeat(4, 1fr); }
+  .cx-steps { grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  .cx-steps li { padding: 64px 0 0; }
+  .cx-steps li::before { top: 0; font-size: 3.4rem; }
+  .cx-steps li::after { left: 72px; right: -24px; top: 26px; bottom: auto; width: auto; height: 2px; }
+}

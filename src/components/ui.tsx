@@ -27,7 +27,7 @@ export function ExternalButton({ variant, size, block, className, href, children
   return <a className={buttonClass({ variant, size, block }, className)} href={href} target="_blank" rel="noopener noreferrer" {...rest}>{children}</a>;
 }
 
-export function Badge({ tone, plain, children }: { tone?: "in" | "low" | "ask"; plain?: boolean; children: ReactNode }) {
+export function Badge({ tone, plain, children }: { tone?: StockState; plain?: boolean; children: ReactNode }) {
   return <span className={["badge", tone && tone !== "ask" && `badge--${tone}`, plain && "badge--plain"].filter(Boolean).join(" ")}>{children}</span>;
 }
 

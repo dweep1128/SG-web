@@ -32,6 +32,8 @@ const securityHeaders = [
   { key: "Content-Security-Policy", value: csp },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
+  // HTTPS only for 2 years. No includeSubDomains/preload: the domain is not chosen yet and that can't be undone quickly.
+  ...(isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000" }]),
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // Camera only for this site (SK-image); everything else off.
   { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=(), usb=()" },
@@ -41,12 +43,15 @@ const nextConfig: NextConfig = {
   // Every photo is already resized by Cloudinary (f_auto,q_auto,w_…), so Next's own optimizer is switched off:
   // no /_next/image endpoint to attack, no sharp at runtime.
   images: { unoptimized: true },
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false, // the default; explicit so nobody turns it on: maps would publish the source
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   async redirects() {
     return [
       { source: "/products", destination: "/parts", statusCode: 301 },
+      { source: "/admin", destination: "/sk-image", statusCode: 307 }, // the admin portal is SK-image
       { source: "/products/:path*", destination: "/parts", statusCode: 301 },
     ];
   },

@@ -7,16 +7,25 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "sync:delta": "node scripts/busy-sync/index.mjs delta",
+    "sync:full": "node scripts/busy-sync/index.mjs full",
     "sync:items": "node scripts/busy-sync/index.mjs items",
     "sync:stock": "node scripts/busy-sync/index.mjs stock",
-    "sync:full": "node scripts/busy-sync/index.mjs full",
+    "sync:server": "node scripts/busy-sync/server.mjs",
     "sync:check": "node scripts/busy-sync/check.mjs",
-    "check:search": "node --experimental-strip-types --no-warnings scripts/check-search.ts"
+    "check:search": "node --experimental-strip-types --no-warnings scripts/check-search.ts",
+    "admin:user": "node scripts/admin-user.mjs",
+    "local:seed": "node scripts/local/seed.mjs",
+    "local:busy": "node scripts/local/fake-busy.mjs",
+    "check:stock": "node scripts/check-stock-status.mjs",
+    "check:leaks": "node scripts/leak-test.mjs",
+    "check:live-anon": "node scripts/live-anon-probe.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "2.112.3",
     "fuse.js": "7.1.0",
+    "mssql": "12.7.1",
     "next": "15.5.26",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -28,7 +37,6 @@
     "@types/react-dom": "19.2.4",
     "eslint": "9.39.1",
     "eslint-config-next": "15.5.26",
-    "mssql": "12.7.1",
     "typescript": "5.9.3"
   },
   "engines": {

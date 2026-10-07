@@ -4,12 +4,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import { assertReadOnly, parseRowset } from "../busy-query.mjs";
+import { assertReadOnly } from "../busy-query.mjs";
 import {
-  buildItemsQuery, classifyBusyError, isSameCompanyOtherYear, ITEM_BATCH_SIZE, ITEM_CODES_QUERY, MAX_QUERY_CHARS, STOCK_QUERY, validateRowset,
+  buildItemsQuery, classifyBusyError, createBusyReader, isSameCompanyOtherYear, ITEM_BATCH_SIZE, ITEM_CODES_QUERY, newerYears, STOCK_QUERY, validateRows,
 } from "./busy.mjs";
 import {
-  assertServerSideKey, checkSanity, exclusionWarnings, loadConfig, parseExclusions, planItems, searchName, summarizeItems, summarizeStock, toItemRow,
+  assertServerSideKey, checkSanity, diffStock, exclusionWarnings, loadConfig, parseExclusions, planItems, searchName, summarizeItems, summarizeStock, toItemRow,
 } from "./index.mjs";
 import { COST_COLUMN_PATTERN, ITEM_FIELDS, STOCK_FIELDS } from "./mapping.mjs";
 import { createLocalStore, mergeState } from "./store.mjs";
@@ -23,48 +23,55 @@ const status = (fn) => {
   return "no error";
 };
 
-// --- company / FY classification, pinned to busy-query.mjs's exact guard message ---
-const queryModule = readFileSync(join(import.meta.dirname, "..", "busy-query.mjs"), "utf8");
-assert.ok(
-  queryModule.includes("`DB guard failed: Result=${r.result} Description=${r.description} DB_NAME()=${actual} expected=${expected}`"),
-  "busy-query.mjs guard message changed — update GUARD_MESSAGE in busy.mjs",
-);
-const guard = (result, desc, actual) => new Error(`DB guard failed: Result=${result} Description=${desc} DB_NAME()=${actual} expected=BusyComp0003_db12026`);
-assert.equal(classifyBusyError(guard("F", "Please open a company", "null")).status, "BUSY_CLOSED");
-assert.equal(classifyBusyError(guard("T", "null", "BusyComp0003_db12027")).status, "NEW_FY_DETECTED");
-assert.equal(classifyBusyError(guard("T", "null", "BusyComp0004_db12026")).status, "WRONG_DATABASE");
-assert.equal(classifyBusyError(guard("F", "Login failed for user", "null")).status, "BUSY_ERROR");
-assert.equal(classifyBusyError(new Error("TIMEOUT after 60000ms")).status, "BUSY_UNREACHABLE");
-assert.equal(classifyBusyError(Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })).status, "BUSY_UNREACHABLE");
+// --- error classification (mssql error shapes) ---
+assert.equal(classifyBusyError(Object.assign(new Error("Login failed for user 'webapp_readonly'."), { code: "ELOGIN" })).status, "BUSY_LOGIN_FAILED");
+assert.equal(classifyBusyError(Object.assign(new Error("Cannot open database \"X\" requested by the login."), { code: "ELOGIN" })).status, "WRONG_DATABASE");
+assert.equal(classifyBusyError(Object.assign(new Error("Failed to connect to 100.64.0.1:1433 in 15000ms"), { code: "ETIMEOUT" })).status, "BUSY_UNREACHABLE");
+assert.equal(classifyBusyError(Object.assign(new Error("connect ECONNREFUSED"), { code: "ESOCKET" })).status, "BUSY_UNREACHABLE");
 assert.equal(classifyBusyError(new Error("Refusing: forbidden keyword 'delete'")).status, "QUERY_REFUSED");
+assert.equal(classifyBusyError(new Error("Invalid column name 'X'.")).status, "BUSY_QUERY_FAILED");
 assert.equal(isSameCompanyOtherYear("BusyComp0003_db12027", "BusyComp0003_db12026"), true);
 assert.equal(isSameCompanyOtherYear("BusyComp0003_db12026", "BusyComp0003_db12026"), false);
+assert.equal(isSameCompanyOtherYear("BusyComp0001_db12026", "BusyComp0003_db12026"), false);
+assert.deepEqual(newerYears(["BusyComp0003_db12025", "BusyComp0003_db12026", "BusyComp0003_db12027", "BusyComp0001_db12028"], "BusyComp0003_db12026"), ["BusyComp0003_db12027"]);
 
-// --- every query the sync sends is read-only, cost-free and within the proven length ---
+// --- company guard: exactly BUSY_EXPECTED_DB, Comp0001 refused, a later FY stops the run ---
+const fakeExec = (db, dbs) => async (sql) => ({ rows: sql.includes("DB_NAME") ? [{ db }] : dbs.map((name) => ({ name })), columns: [], ms: 1 });
+const guardStatus = async (db, dbs = [db], expectedDb = "BusyComp0003_db12026") => {
+  try {
+    await createBusyReader({ exec: fakeExec(db, dbs), expectedDb, log: () => {} }).checkCompany("t");
+    return "OK";
+  } catch (e) {
+    return e.status;
+  }
+};
+assert.equal(await guardStatus("BusyComp0003_db12026"), "OK");
+assert.equal(await guardStatus("BusyComp0001_db12026"), "WRONG_DATABASE");
+assert.equal(await guardStatus("BusyComp0003_db12025"), "NEW_FY_DETECTED");
+assert.equal(await guardStatus("BusyComp0003_db12026", ["BusyComp0003_db12026", "BusyComp0003_db12027"]), "NEW_FY_DETECTED");
+assert.equal(await guardStatus("x", ["x"], "Comp3; DROP"), "CONFIG_ERROR");
+// env pointed at another company: refused even though BUSY really has that DB open
+assert.equal(await guardStatus("BusyComp0001_db12026", ["BusyComp0001_db12026"], "BusyComp0001_db12026"), "WRONG_DATABASE");
+
+// --- every query the sync sends is read-only and cost-free ---
 const worstBatch = Array.from({ length: ITEM_BATCH_SIZE }, (_, i) => 9_000_000 + i); // 7-digit codes
-for (const sql of [buildItemsQuery(worstBatch), STOCK_QUERY, ITEM_CODES_QUERY]) {
+for (const sql of [buildItemsQuery(worstBatch), STOCK_QUERY, ITEM_CODES_QUERY, "SELECT DB_NAME() AS db", "SELECT name FROM sys.databases WHERE name LIKE 'BusyComp0003[_]db1%'"]) {
   assertReadOnly(sql);
   assert.equal(COST_COLUMN_PATTERN.test(sql), false);
-  assert.ok(sql.length <= MAX_QUERY_CHARS, `query is ${sql.length} chars`);
 }
 assert.equal(COST_COLUMN_PATTERN.test("SELECT i.D4 FROM Master1 i"), true);
 assert.equal(COST_COLUMN_PATTERN.test("SELECT i.D24, i.D3 FROM Master1 i"), false);
 for (const f of [...ITEM_FIELDS, ...STOCK_FIELDS]) assert.equal(COST_COLUMN_PATTERN.test(`${f.sql} ${f.alias} ${f.field}`), false, f.field);
 assert.equal(status(() => buildItemsQuery(["1; DROP"])), "INTERNAL_ERROR");
 
-// --- strict rowset validation ---
-const xml = (rows, cols = [["Code", "int"], ["StockQty", "float"]]) =>
-  `<xml><s:Schema id='RowsetSchema'><s:ElementType name='row'>` +
-  cols.map(([n, t]) => `<s:AttributeType name='${n}'><s:datatype dt:type='${t}'/></s:AttributeType>`).join("") +
-  `</s:ElementType></s:Schema><rs:data>${rows}</rs:data></xml>`;
-const resp = (body) => ({ http: 200, result: "T", body, ...parseRowset(body) });
-assert.deepEqual(validateRowset(resp(xml(`<z:row Code='1291' StockQty='1796'/>`)), STOCK_FIELDS, "t"), [{ busy_code: 1291, stock_qty: 1796 }]);
-assert.equal(status(() => validateRowset(resp(xml(`<z:row Code='1291' StockQty='1796'/>`).slice(0, -6)), STOCK_FIELDS, "t")), "PARSE_FAILED"); // truncated
-assert.equal(status(() => validateRowset(resp(xml(`<z:row Code='1291' StockQty='1796'/><z:row Code='2' StockQty='1' x=/>`)), STOCK_FIELDS, "t")), "PARSE_FAILED"); // unparseable row
-assert.equal(status(() => validateRowset(resp(xml(`<z:row Code='1291'/>`)), STOCK_FIELDS, "t")), "PARSE_FAILED"); // NULL qty
-assert.equal(status(() => validateRowset(resp(xml(`<z:row Code='x' StockQty='1'/>`, [["Code", "string"], ["StockQty", "float"]])), STOCK_FIELDS, "t")), "PARSE_FAILED");
-assert.equal(status(() => validateRowset(resp(xml(`<z:row Code='1' Qty='1'/>`, [["Code", "int"], ["Qty", "float"]])), STOCK_FIELDS, "t")), "PARSE_FAILED"); // wrong column
-assert.equal(status(() => validateRowset({ ...resp(xml("")), http: 500 }, STOCK_FIELDS, "t")), "PARSE_FAILED");
+// --- strict row validation ---
+const rs = (rows, columns = ["Code", "StockQty"]) => ({ rows, columns });
+assert.deepEqual(validateRows(rs([{ Code: 1291, StockQty: 1796 }]), STOCK_FIELDS, "t"), [{ busy_code: 1291, stock_qty: 1796 }]);
+assert.equal(status(() => validateRows(rs([{ Code: 1291, StockQty: null }]), STOCK_FIELDS, "t")), "PARSE_FAILED"); // NULL qty
+assert.equal(status(() => validateRows(rs([{ Code: "x", StockQty: 1 }]), STOCK_FIELDS, "t")), "PARSE_FAILED");
+assert.equal(status(() => validateRows(rs([{ Code: 1, StockQty: NaN }]), STOCK_FIELDS, "t")), "PARSE_FAILED");
+assert.equal(status(() => validateRows(rs([{ Code: 1, Qty: 1 }], ["Code", "Qty"]), STOCK_FIELDS, "t")), "PARSE_FAILED"); // wrong column
+assert.equal(status(() => validateRows(rs([], ["StockQty", "Code"]), STOCK_FIELDS, "t")), "PARSE_FAILED"); // wrong order
 
 // --- item planning, rows, counts, sanity ---
 assert.equal(searchName("CHARGER  60V"), "charger 60v");
@@ -77,6 +84,16 @@ const codes = [{ busy_code: 1, busy_stamp: 1 }, { busy_code: 2, busy_stamp: 2 },
 assert.deepEqual(planItems(prev, codes, false), { fetchCodes: [2, 3, 4], newCount: 1, missingCodes: [] });
 assert.deepEqual(planItems(prev, codes, true).fetchCodes, [1, 2, 3, 4]);
 assert.deepEqual(planItems(prev, [{ busy_code: 2, busy_stamp: 1 }], false).missingCodes, [1]); // never deleted, only flagged
+// Delta: price moved with the same Stamp → re-pulled; unchanged → not; price_visible flipped → all re-pulled.
+assert.deepEqual(planItems(prev.slice(0, 2), [{ busy_code: 1, busy_stamp: 1, sale_price: 10 }, { busy_code: 2, busy_stamp: 1, sale_price: 12 }], false).fetchCodes, [2]);
+assert.deepEqual(planItems(prev.slice(0, 2).map((r) => ({ ...r, price_visible: false })), codes.slice(0, 2).map((c) => ({ ...c, busy_stamp: 1, sale_price: 10 })), false, new Map(), true).fetchCodes, [1, 2]);
+
+// --- stock diff: only changed quantities (or visibility) are pushed; full pushes everything ---
+const stockState = [{ busy_code: 1, stock_qty: 5, stock_visible: true }, { busy_code: 2, stock_qty: 0, stock_visible: true }, { busy_code: 3, stock_qty: null, stock_visible: false }];
+const pulled = [{ busy_code: 1, stock_qty: 5 }, { busy_code: 2, stock_qty: 3 }, { busy_code: 3, stock_qty: 0 }, { busy_code: 4, stock_qty: 1 }];
+assert.deepEqual(diffStock(stockState, pulled, true, false).map((r) => r.busy_code), [2, 3, 4]);
+assert.deepEqual(diffStock(stockState, pulled, false, false).map((r) => r.busy_code), [1, 2, 3, 4]); // visibility flipped
+assert.equal(diffStock(stockState, pulled, true, true).length, 4);
 
 // --- catalog exclusions ---
 const realList = parseExclusions(JSON.parse(readFileSync(join(import.meta.dirname, "catalog-exclusions.json"), "utf8")));
@@ -101,6 +118,8 @@ assert.equal(row.price_visible, false);
 assert.equal(row.exclude_from_catalog, true);
 assert.equal(toItemRow(item, "t", false).exclude_from_catalog, false);
 assert.ok(!Object.keys(row).some((k) => /d4|purc|cost/i.test(k)));
+// staff-owned columns are never in a sync upsert, so a sync can never overwrite them
+for (const k of ["display_name", "description", "hidden"]) assert.ok(!(k in row), `sync row must not carry ${k}`);
 const merged = mergeState(prev, [row], [1]);
 const counts = summarizeItems(prev, merged);
 assert.equal(counts.previous_active, 2);
@@ -146,9 +165,9 @@ assert.equal(saved.stock_updated, 1);
 const state = await store.loadItemState();
 assert.deepEqual(state.map((r) => [r.busy_code, r.stock_qty, r.stock_visible]), [[5, 7, false]]);
 assert.equal(await store.loadLastSuccessfulItemCounts(), null);
-await store.recordRun({ status: "OK", counts: { items: { present_in_busy: 10, price_zero_or_missing: 1 } } });
-await store.recordRun({ status: "SANITY_FAILED", counts: { items: { present_in_busy: 10, price_zero_or_missing: 9 } } });
-await store.recordRun({ status: "OK", counts: { stock: { rows: 10 } } });
+assert.equal(await store.recordRun({ status: "OK", counts: { items: { present_in_busy: 10, price_zero_or_missing: 1 } } }), null);
+assert.equal(await store.recordRun({ status: "SANITY_FAILED", counts: { items: { present_in_busy: 10, price_zero_or_missing: 9 } } }), "OK");
+assert.equal(await store.recordRun({ status: "OK", counts: { stock: { rows: 10 } } }), "SANITY_FAILED");
 assert.deepEqual(await store.loadLastSuccessfulItemCounts(), { present_in_busy: 10, price_zero_or_missing: 1 });
 
 console.log("busy-sync checks passed");

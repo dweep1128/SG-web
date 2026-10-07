@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CARD_IMAGE_WIDTH, cld } from "@/lib/cloudinary";
-import { discardUpload, fileToJpeg, MAX_PHOTOS, refreshSite, saveMedia, uploadToCloudinary, type Media, type Source } from "@/lib/sk-image";
+import { discardUpload, fileToJpeg, MAX_PHOTOS, refreshSite, saveMedia, SOURCE_LABEL, uploadToCloudinary, type Media, type Source } from "@/lib/sk-image";
 import { browserSupabase } from "@/lib/supabase";
 import { toast, toastError } from "../toast";
 import { Badge, Button, CodeTag, EmptyState } from "../ui";
@@ -158,14 +158,14 @@ export function PhotoManager({ source, productKey, name, sku, siteHref, initialM
     <>
       <nav aria-label="Breadcrumb" className="breadcrumb">
         <ol>
-          <li><Link href="/sk-image">Photos</Link></li>
+          <li><Link href="/sk-image">Products</Link></li>
           <li aria-current="page">#{sku}</li>
         </ol>
       </nav>
       <div className="page__head">
         <div className="detail__tags">
           <CodeTag code={sku} />
-          <Badge plain>{source === "busy" ? "BUSY" : "Manual"}</Badge>
+          <Badge plain>{SOURCE_LABEL[source]}</Badge>
         </div>
         <h1 className="sk-title sk-title--product">{name}</h1>
         <p className="sk-stats">

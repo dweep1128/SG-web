@@ -4,6 +4,9 @@ E-scooter spare-parts catalogue for dealers and workshops. Shoppers search parts
 WhatsApp. Stock and prices come from the shop's billing software (BUSY). Staff add product photos from their phones
 with **SK-image** (`/sk-image`).
 
+**Live 60-second BUSY sync (SQL login, n8n), owner/staff admin portal: see [NOTES.md](NOTES.md) — it supersedes the
+sync/scheduling parts below and in HANDOVER.md.**
+
 Other documents: [HANDOVER.md](HANDOVER.md) (accounts, keys, runbooks) · [STAFF-GUIDE.md](STAFF-GUIDE.md) (for shop
 staff) · [AUDIT.md](AUDIT.md) (security/quality audit and open items) · [PROGRESS.md](PROGRESS.md) (build log).
 

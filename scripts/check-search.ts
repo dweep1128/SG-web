@@ -65,4 +65,9 @@ assert.equal(classifyPart("KEY LOCK", "General"), "controls");
 assert.equal(classifyPart("THROTTLE WITH DISPLAY AND KEY", "General"), "controls");
 assert.equal(classifyPart("HUB MOTOR 1000W 10\" DISC TYPE", "General"), "motors");
 
+// Display name and BUSY name both match.
+const renamed = buildIndex([{ ...doc(9001, "Scooter charger 60V", "8504", "chargers"), altName: "CHRGR 60V ORIG" }]);
+assert.equal(search(renamed, "scooter charger").length, 1, "display name matches");
+assert.equal(search(renamed, "chrgr orig").length, 1, "BUSY name matches");
+
 console.log("check-search: all assertions passed");

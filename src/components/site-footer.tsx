@@ -17,6 +17,7 @@ export function SiteFooter() {
             <li><Link href="/parts">All parts</Link></li>
             <li><Link href="/quote">Your quote</Link></li>
             <li><Link href="/about">About &amp; contact</Link></li>
+            <li><Link href="/consultancy">Automation consultancy</Link></li>
             {wa && <li><a href={wa} target="_blank" rel="noopener noreferrer">WhatsApp us</a></li>}
           </ul>
         </nav>

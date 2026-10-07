@@ -1,9 +1,11 @@
 import { PortalNav } from "@/components/sk-image/portal-nav";
+import { currentRole } from "@/lib/supabase-server";
 
-export default function PortalLayout({ children }: { children: React.ReactNode }) {
+export default async function PortalLayout({ children }: { children: React.ReactNode }) {
+  const role = await currentRole();
   return (
     <>
-      <PortalNav />
+      <PortalNav role={role} />
       {children}
     </>
   );

@@ -1,6 +1,6 @@
 // URL-synced catalog filters shared by /parts and /search. Pure: parse → apply → paginate.
 import { isCategorySlug, type CategorySlug } from "./categories";
-import type { Part } from "./catalog-types";
+import { isInStock, type Part } from "./catalog-types";
 import { PAGE_SIZE } from "./site";
 
 export const SORTS = [
@@ -35,7 +35,7 @@ function byPrice(dir: 1 | -1) {
 
 // `parts` arrives in relevance order from search, or name order from the catalog.
 export function applyFilters(parts: Part[], f: Filters): Part[] {
-  const out = parts.filter((p) => (!f.cat || p.cat === f.cat) && (!f.inStock || p.stock !== "ask"));
+  const out = parts.filter((p) => (!f.cat || p.cat === f.cat) && (!f.inStock || isInStock(p.stock)));
   if (f.sort === "name") return out.sort((a, b) => a.name.localeCompare(b.name));
   if (f.sort === "price-asc") return out.sort(byPrice(1));
   if (f.sort === "price-desc") return out.sort(byPrice(-1));

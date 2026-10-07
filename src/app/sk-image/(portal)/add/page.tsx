@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { DeleteProduct, ProductForm, ToggleActive } from "@/components/sk-image/product-form";
 import { Badge, ButtonLink, CodeTag, EmptyState } from "@/components/ui";
-import { formatPrice } from "@/lib/catalog-types";
+import { formatPrice, getDisplayName } from "@/lib/catalog-types";
 import { photosHref, type ManualProduct } from "@/lib/sk-image";
-import { serverSupabase } from "@/lib/supabase-server";
+import { currentRole, serverSupabase } from "@/lib/supabase-server";
 
 type Props = { searchParams: Promise<{ edit?: string | string[] }> };
 
 export default async function AddProductPage({ searchParams }: Props) {
   const { edit } = await searchParams;
   const supabase = await serverSupabase();
+  const isOwner = (await currentRole()) === "owner";
   const { data, error } = await supabase.from("products_manual").select("*").order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   const products = (data ?? []) as ManualProduct[];
@@ -25,7 +26,7 @@ export default async function AddProductPage({ searchParams }: Props) {
       </section>
 
       <section aria-labelledby="manual-heading">
-        <h2 id="manual-heading" className="sk-subtitle">Manual products</h2>
+        <h2 id="manual-heading" className="sk-subtitle">Portal products</h2>
         {products.length === 0 ? (
           <EmptyState title="None yet">Products added here show on the website next to BUSY items.</EmptyState>
         ) : (
@@ -35,16 +36,16 @@ export default async function AddProductPage({ searchParams }: Props) {
                 <div className="sk-row__info">
                   <div className="detail__tags">
                     <CodeTag code={p.sku} />
-                    {p.is_active ? <Badge tone="in">Active</Badge> : <Badge>Disabled</Badge>}
+                    {p.is_active ? <Badge tone="in">Visible</Badge> : <Badge tone="out">Hidden</Badge>}
                   </div>
-                  <p className="sk-row__name">{p.name}</p>
-                  <p className="sk-row__meta">{formatPrice(p.price != null && p.price > 0 ? Number(p.price) : null)} · stock {p.stock ?? "—"}</p>
+                  <p className="sk-row__name">{getDisplayName(p)}</p>
+                  <p className="sk-row__meta">{formatPrice(p.price != null && p.price > 0 ? Number(p.price) : null)} · stock {p.stock ?? (p.in_stock ? "in stock" : "—")}{p.busy_code != null && ` · added to BUSY #${p.busy_code}`}</p>
                 </div>
                 <div className="sk-row__actions">
                   <ButtonLink size="sm" href={`/sk-image/add?edit=${p.id}`}>Edit</ButtonLink>
                   <ButtonLink size="sm" href={photosHref("manual", String(p.id))}>Photos</ButtonLink>
                   <ToggleActive id={p.id} active={p.is_active} />
-                  <DeleteProduct id={p.id} name={p.name} />
+                  {isOwner && <DeleteProduct id={p.id} name={p.name} />}
                 </div>
               </li>
             ))}

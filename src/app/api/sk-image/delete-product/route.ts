@@ -4,10 +4,10 @@ import { requireStaff } from "@/lib/supabase-server";
 
 // Permanent delete of a MANUAL product: each photo (Cloudinary, then its row), then the product row.
 // Stops at the first failure, so whatever is left is still consistent and the delete can simply be retried.
-// BUSY items can't be deleted here: they belong to the sync.
+// BUSY items can't be deleted here: they belong to the sync. Owner only (the DB delete policy says the same).
 export async function POST(req: Request) {
-  const supabase = await requireStaff();
-  if (!supabase) return Response.json({ error: "Not signed in" }, { status: 401 });
+  const supabase = await requireStaff(["owner"]);
+  if (!supabase) return Response.json({ error: "Only the owner can delete products. Use Hide instead." }, { status: 403 });
 
   const { id } = await req.json().catch(() => ({}));
   if (!Number.isSafeInteger(id) || id < 1) return Response.json({ error: "Bad id" }, { status: 400 });

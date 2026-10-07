@@ -6,6 +6,7 @@ import { filterHref, filtersToParams, paginate, type Filters, type SortValue } f
 import { Highlight } from "./highlight";
 import { PartCard } from "./part-card";
 import { SortSelect } from "./sort-select";
+import { StockUpdated } from "./stock-updated";
 
 type Props = {
   path: "/parts" | "/search";
@@ -53,6 +54,7 @@ export function CatalogView({ path, filters, defaultSort, results, categoryCount
         {total === 0 ? "No parts match" : `${total.toLocaleString("en-IN")} part${total === 1 ? "" : "s"}`}
         {pageCount > 1 && ` · page ${page} of ${pageCount}`}
       </p>
+      <StockUpdated />
 
       <h2 className="visually-hidden">Results</h2>
       {total === 0 ? (

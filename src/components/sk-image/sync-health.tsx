@@ -2,34 +2,29 @@ import { updatedAgo } from "@/lib/catalog-types";
 import { serverSupabase } from "@/lib/supabase-server";
 import { Badge } from "../ui";
 
-// Stock is meant to refresh every 15–30 min; past this, something (BUSY closed, PC off, scheduler) needs a look.
-const STALE_MS = 2 * 60 * 60 * 1000;
+// The sync runs every minute; past this, something (PC off, Tailscale, BUSY SQL, n8n) needs a look.
+// Same threshold as n8n's stale-data alert.
+const STALE_MS = 10 * 60 * 1000;
 
-type Row = { job: "items" | "stock" | "full"; last_ok_at: string | null; last_run_at: string | null; last_status: string | null; catalog_items: number };
+type Row = { last_ok_at: string | null; last_run_at: string | null; last_status: string | null; last_error: string | null; consecutive_failures: number; catalog_items: number };
 
-const newest = (dates: (string | null)[]) => dates.filter(Boolean).sort().at(-1) ?? null;
-
-// One line on the portal home: when BUSY stock/prices last reached the site. Hidden if supabase/handover-audit.sql
-// (which creates sync_health()) hasn't been run yet.
+// One line on the portal home: when BUSY stock/prices last reached the site. Hidden if portal_sync_status()
+// (supabase/live-sync-admin.sql) isn't there yet.
 export async function SyncHealth() {
   const supabase = await serverSupabase();
-  const { data, error } = await supabase.rpc("sync_health");
-  if (error || !data?.length) return null;
-  const rows = data as Row[];
-  const at = (job: Row["job"]) => rows.find((r) => r.job === job);
-  const stockOk = newest([at("stock")?.last_ok_at ?? null, at("full")?.last_ok_at ?? null]);
+  const { data, error } = await supabase.rpc("portal_sync_status").maybeSingle<Row>();
+  if (error || !data) return null;
   const now = Date.now();
-  const stale = !stockOk || now - new Date(stockOk).getTime() > STALE_MS;
-  const lastRun = rows.filter((r) => r.last_run_at).sort((a, b) => b.last_run_at!.localeCompare(a.last_run_at!))[0];
-  const failed = lastRun && lastRun.last_status !== "OK" ? lastRun.last_status : null;
+  const stale = !data.last_ok_at || now - new Date(data.last_ok_at).getTime() > STALE_MS;
+  const failed = data.last_status && data.last_status !== "OK";
 
   return (
     <p className="sk-sync" role="status">
       <span>
-        BUSY stock &amp; prices: {stockOk ? updatedAgo(stockOk, now).replace("Updated", "updated") : "never synced"} · {rows[0].catalog_items.toLocaleString("en-IN")} items
+        BUSY stock &amp; prices: {data.last_ok_at ? updatedAgo(data.last_ok_at, now).replace("Updated", "updated") : "never synced"} · {data.catalog_items.toLocaleString("en-IN")} items
       </span>
       {stale && <Badge tone="low">Sync is late</Badge>}
-      {failed && <Badge tone="low">Last run: {failed}</Badge>}
+      {failed && <span title={data.last_error ?? undefined}><Badge tone="out">Last run: {data.last_status} ×{data.consecutive_failures}</Badge></span>}
     </p>
   );
 }

@@ -45,6 +45,7 @@
   --warn-bg: #fff0c7; --warn-ink: #6e4200;
   --ask-bg: #ecebe4;  --ask-ink: #3d4440;
   --danger: #b3261e;
+  --out-bg: #fbe9e7;  /* danger text 8.8:1 */
 
   --font-display: var(--font-shoulders), "Big Shoulders Fallback Arial", "Big Shoulders Fallback Roboto", sans-serif;
   --font-body: var(--font-figtree), system-ui, sans-serif;
@@ -135,6 +136,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .badge--in { background: var(--ok-bg); color: var(--ok-ink); }
 .badge--low { background: var(--warn-bg); color: var(--warn-ink); }
+.badge--out { background: var(--out-bg); color: var(--danger); }
 .badge--plain::before { display: none; }
 
 /* ─── Code tag (stamped part code) ─────────────────────────────────────── */
@@ -236,6 +238,7 @@ select.input { appearance: none; padding-right: 36px; background: var(--surface)
 .cat-menu__panel a:hover { background: var(--brand-tint); }
 .cat-menu__panel svg { color: var(--brand); }
 .cat-menu__all { font-weight: 700 !important; border-bottom: 1px solid var(--line); border-radius: 0 !important; margin-bottom: 4px; }
+.cat-menu__extra { border-bottom: 0; border-top: 1px solid var(--line); margin: 4px 0 0; }
 .quote-link { grid-area: quote; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 8px; min-height: 44px; text-decoration: none; font-weight: 700; border-radius: var(--radius-sm); }
 .quote-link:hover { background: var(--brand-strong); }
 .quote-link__label { display: none; }
@@ -497,6 +500,7 @@ main:has(> .wa-strip:last-child) + .site-footer { margin-top: 0; border-top: 1px
 .suggest__meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.78rem; color: var(--muted); }
 .suggest__stock--in { color: var(--ok-ink); font-weight: 600; }
 .suggest__stock--low { color: var(--warn-ink); font-weight: 600; }
+.suggest__stock--out { color: var(--danger); font-weight: 600; }
 .suggest__all { font-weight: 700; color: var(--brand); border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-sm) var(--radius-sm); margin-top: 4px; }
 .suggest__status { padding: 10px 12px; font-size: 0.85rem; color: var(--muted); }
 .search-page__box { max-width: 720px; margin-bottom: 20px; }
@@ -505,3 +509,7 @@ main:has(> .wa-strip:last-child) + .site-footer { margin-top: 0; border-top: 1px
 .search-page__title { overflow-wrap: anywhere; text-transform: none; }
 .search-page__hint { color: var(--muted); margin-bottom: 12px; }
 .chips--wrap { flex-wrap: wrap; margin-inline: 0; padding-inline: 0; overflow: visible; }
+
+/* ─── Live stock line ("Stock updated at …") ───────────────────────────── */
+.stock-fresh { margin: -4px 0 12px; font-size: 0.8125rem; color: var(--muted); }
+.stock-fresh__stale { color: var(--warn-ink); }

@@ -5,13 +5,14 @@ import { notFound } from "next/navigation";
 import { AddToQuote } from "@/components/add-to-quote";
 import { PartGrid } from "@/components/part-card";
 import { PartImage } from "@/components/part-image";
+import { StockUpdated } from "@/components/stock-updated";
 import { CodeTag, ExternalButton, StockBadge } from "@/components/ui";
 import { getPart, getPartPhotos, getParts } from "@/lib/catalog";
-import { categoryLabel, formatPrice, GST_NOTE, priceWithGst, STOCK_LABEL, updatedAgo, type Part } from "@/lib/catalog-types";
+import { categoryLabel, formatPrice, GST_NOTE, isInStock, priceWithGst, STOCK_LABEL, type Part } from "@/lib/catalog-types";
 import { cld, DETAIL_IMAGE_WIDTH } from "@/lib/cloudinary";
 import { SITE, whatsappLink } from "@/lib/site";
 
-export const revalidate = 300;
+export const revalidate = 30; // = LIVE_REFRESH_SECONDS (route segment config must be a literal)
 // Render on first request, then cache (ISR). 1,400+ pages at build time isn't worth it.
 export function generateStaticParams() {
   return [];
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function related(all: Part[], part: Part): Part[] {
   return all
     .filter((p) => p.cat === part.cat && p.code !== part.code)
-    .sort((a, b) => Number(a.stock === "ask") - Number(b.stock === "ask"))
+    .sort((a, b) => Number(isInStock(b.stock)) - Number(isInStock(a.stock)))
     .slice(0, RELATED_COUNT);
 }
 
@@ -105,12 +106,10 @@ export default async function PartPage({ params }: Props) {
             {part.unit && <div><dt>Unit</dt><dd>{part.unit}</dd></div>}
             <div>
               <dt>Stock</dt>
-              <dd>
-                {STOCK_LABEL[part.stock]}
-                {part.syncedAt && <span className="specs__note"> · {updatedAgo(part.syncedAt, Date.now())}</span>}
-              </dd>
+              <dd>{STOCK_LABEL[part.stock]}</dd>
             </div>
           </dl>
+          {part.source === "busy" && <StockUpdated />}
 
           <AddToQuote part={quotePart} />
           <ExternalButton href={wa} variant="whatsapp" block>Ask about this part on WhatsApp</ExternalButton>

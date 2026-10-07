@@ -1,4 +1,4 @@
-// Field → BUSY column map for the BUSY → Supabase sync. Every choice comes from docs/busy-schema-report.md.
+// Field → BUSY column map for the BUSY → Supabase sync (SQL Server, read-only login). Every choice comes from docs/busy-schema-report.md.
 // Evidence tags are copied from that report. GUESS = supported by data, NOT yet confirmed on the BUSY screen,
 // which is why prices and stock stay hidden (price_visible / stock_visible) until PRICE_VERIFIED / STOCK_VERIFIED.
 //
@@ -25,9 +25,12 @@ export const ITEM_FIELDS = [
   { field: "busy_blocked", sql: "i.BlockedMaster", alias: "BlockedMaster", type: "bool", evidence: "GUESS (column name)" },
 ];
 
+// Cheap change detector pulled every delta run: an item is re-pulled when its Stamp OR its price moved
+// (price is compared too because Stamp is still unconfirmed as an edit counter).
 export const ITEM_CODE_FIELDS = [
   { field: "busy_code", sql: "Code", alias: "Code", type: "int" },
   { field: "busy_stamp", sql: "Stamp", alias: "Stamp", type: "int" },
+  { field: "sale_price", sql: "D3", alias: "SalePrice", type: "number" },
 ];
 
 export const STOCK_FIELDS = [

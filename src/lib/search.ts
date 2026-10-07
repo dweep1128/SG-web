@@ -1,12 +1,13 @@
 // Fuzzy part search, shared by the header dropdown (client) and /search (server).
 // Relative .ts imports only, so scripts/check-search.ts can run this file under plain Node.
 import Fuse from "fuse.js";
+import type { StockState } from "./catalog-types.ts";
 import { categoryLabel, type CategorySlug } from "./categories.ts";
 import { normalize } from "./normalize.ts";
 import { SEARCH_ALIASES } from "./search-aliases.ts";
 
 // The minimum a search result needs. Part satisfies it; the client index ships only these fields.
-export type SearchDoc = { code: string; sku: string; name: string; price: number | null; hsn: string | null; stock: "in" | "low" | "ask"; cat: CategorySlug };
+export type SearchDoc = { code: string; sku: string; name: string; altName?: string | null; price: number | null; hsn: string | null; stock: StockState; cat: CategorySlug };
 
 const FUZZY_THRESHOLD = 0.34; // "chager" → "charger" passes; "48v" vs "60v" does not
 const SUGGEST_THRESHOLD = 0.5;
@@ -23,7 +24,7 @@ export type SearchIndex<T extends SearchDoc> = { fuse: Fuse<Row<T>>; bySku: Map<
 export function buildIndex<T extends SearchDoc>(docs: T[]): SearchIndex<T> {
   const rows = docs.map((doc) => ({
     doc,
-    hay: normalize([doc.name, doc.sku, doc.hsn ?? "", categoryLabel(doc.cat), ...(aliasesByCode.get(doc.code) ?? [])].join(" ")),
+    hay: normalize([doc.name, doc.altName ?? "", doc.sku, doc.hsn ?? "", categoryLabel(doc.cat), ...(aliasesByCode.get(doc.code) ?? [])].join(" ")),
   }));
   return {
     fuse: new Fuse(rows, { keys: ["hay"], useExtendedSearch: true, ignoreLocation: true, threshold: FUZZY_THRESHOLD, includeScore: true }),

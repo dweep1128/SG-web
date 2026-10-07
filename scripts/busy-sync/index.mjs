@@ -1,21 +1,26 @@
-// BUSY → Supabase item/stock sync (v1).
-//   node scripts/busy-sync/index.mjs <items|stock|full> --dry-run   reads BUSY, writes only to SYNC_DATA_DIR (default ./local-data)
-//   node scripts/busy-sync/index.mjs <items|stock|full> --live      reads BUSY, writes Supabase (service role key, server-side only)
+// BUSY → Supabase item/stock sync over the read-only BUSY SQL login.
+//   node scripts/busy-sync/index.mjs <delta|items|stock|full> --dry-run   reads BUSY, writes only to SYNC_DATA_DIR (default ./local-data)
+//   node scripts/busy-sync/index.mjs <delta|items|stock|full> --live      reads BUSY, writes Supabase (service role key, server-side only)
 // Exactly one of --dry-run / --live is required, so nothing reaches Supabase by accident.
+//   delta = every 60 s: items whose Stamp/price changed + stock rows whose quantity changed. Pushes only the changes.
+//   full  = nightly safety net: re-pulls every item and pushes every stock row.
+//   items / stock = the older partial jobs, kept for manual use.
+// In production n8n calls these through scripts/busy-sync/server.mjs.
 //
-// Every run: company check → schema fingerprint → pull + strict parse → sanity → company check again → save → run record.
-// Any failure before "save" discards the whole pull; nothing partial is written.
+// Every run: company check → schema fingerprint → pull + strict parse → diff → sanity → company check again → save → run record.
+// Any failure before "save" discards the whole pull; nothing partial is written. Rows are upserted, never deleted.
 import { readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { createBusyReader, SyncError } from "./busy.mjs";
+import { classifyBusyError, createBusyReader, SyncError } from "./busy.mjs";
+import { connectBusySql } from "./sql.mjs";
 import { createLocalStore, createSupabaseStore, mergeState } from "./store.mjs";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const BASELINE_PATH = join(import.meta.dirname, "busy-schema-baseline.json");
 const EXCLUSIONS_PATH = join(import.meta.dirname, "catalog-exclusions.json");
-const JOBS = ["items", "stock", "full"];
+export const JOBS = ["delta", "items", "stock", "full"];
 const ACTIVE_DROP_LIMIT = 0.1;
 const FIRST_RUN_ZERO_PRICE_LIMIT_PCT = 5; // only when there is no earlier successful item run to compare with
 const ZERO_PRICE_RISE_LIMIT_PTS = 2; // percentage points above the last successful run
@@ -43,6 +48,8 @@ export function loadConfig(argv, env = process.env) {
     priceVerified: env.PRICE_VERIFIED === "true", // anything but the exact string "true" keeps prices hidden
     stockVerified: env.STOCK_VERIFIED === "true",
     dataDir: resolve(ROOT, env.SYNC_DATA_DIR || "local-data"),
+    // Local testing against a fake BUSY only; production uses the committed baseline.
+    baselinePath: resolve(ROOT, env.BUSY_SCHEMA_BASELINE || BASELINE_PATH),
     healthcheckUrl: env.HEALTHCHECK_URL || null,
     supabaseUrl: env.SUPABASE_URL,
     serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -82,19 +89,25 @@ export function exclusionWarnings(exclusions, codeRows, items) {
 }
 
 /**
- * Which items to re-pull: new codes, changed Stamp, previously missing ones that came back, or ones whose
- * exclude_from_catalog flag no longer matches the list (so list edits apply on the next item sync). `force` re-pulls all.
+ * Which items to re-pull: new codes, changed Stamp or price, previously missing ones that came back, or ones whose
+ * exclude_from_catalog / price_visible flag no longer matches (so list or env edits apply on the next run). `force` re-pulls all.
  */
-export function planItems(state, codeRows, force, exclusions = new Map()) {
+export function planItems(state, codeRows, force, exclusions = new Map(), priceVisible = undefined) {
   const prevByCode = new Map(state.map((r) => [r.busy_code, r]));
   const inBusy = new Set(codeRows.map((r) => r.busy_code));
   const fetchCodes = [];
   let newCount = 0;
-  for (const { busy_code, busy_stamp } of codeRows) {
+  for (const { busy_code, busy_stamp, sale_price } of codeRows) {
     const prev = prevByCode.get(busy_code);
     if (!prev) newCount++;
-    const flagChanged = prev && Boolean(prev.exclude_from_catalog) !== exclusions.has(busy_code);
-    if (force || !prev || prev.busy_stamp !== busy_stamp || prev.missing_from_busy || flagChanged) fetchCodes.push(busy_code);
+    const changed =
+      !prev ||
+      prev.busy_stamp !== busy_stamp ||
+      (sale_price !== undefined && Number(prev.sale_price) !== sale_price) ||
+      prev.missing_from_busy ||
+      Boolean(prev.exclude_from_catalog) !== exclusions.has(busy_code) ||
+      (priceVisible !== undefined && Boolean(prev.price_visible) !== priceVisible);
+    if (force || changed) fetchCodes.push(busy_code);
   }
   const missingCodes = state.filter((r) => !inBusy.has(r.busy_code) && !r.missing_from_busy).map((r) => r.busy_code);
   return { fetchCodes, newCount, missingCodes };
@@ -109,7 +122,18 @@ export function toItemRow(item, syncedAt, priceVisible, exclusions = new Map()) 
     exclude_from_catalog: exclusions.has(item.busy_code),
     price_visible: priceVisible,
     price_synced_at: syncedAt, // covers the whole item pull (name/HSN/GST/price), not price alone
+    last_synced_at: syncedAt,
   };
+}
+
+/** Stock rows to push: quantity or visibility changed, or the item has no stock yet. `force` sends all. */
+export function diffStock(state, rows, visible, force) {
+  if (force) return rows;
+  const prev = new Map(state.map((r) => [r.busy_code, r]));
+  return rows.filter(({ busy_code, stock_qty }) => {
+    const p = prev.get(busy_code);
+    return !p || p.stock_qty == null || Number(p.stock_qty) !== stock_qty || Boolean(p.stock_visible) !== visible;
+  });
 }
 
 export function summarizeItems(state, merged) {
@@ -185,23 +209,21 @@ async function pingHealthcheck(url) {
   }
 }
 
-async function main() {
+/** Loads .env from the repo root. Existing env vars win, so a server can inject real ones. */
+export function loadDotEnv() {
   try {
-    process.loadEnvFile(join(ROOT, ".env")); // existing env vars win, so a server can inject real ones
+    process.loadEnvFile(join(ROOT, ".env"));
   } catch {
     // No .env file: env comes from the host.
   }
-  let cfg;
-  try {
-    cfg = loadConfig(process.argv.slice(2));
-  } catch (err) {
-    console.error(err.message);
-    process.exitCode = 1;
-    return;
-  }
+}
 
+/**
+ * One sync run. Never throws: the outcome is the returned run record (status "OK" or an error status).
+ * `connect` opens the BUSY connection (read-only SQL login by default).
+ */
+export async function runSync(cfg, { connect = connectBusySql } = {}) {
   const startedAt = new Date();
-  const busy = createBusyReader();
   const localStore = createLocalStore(cfg.dataDir);
   const phasesMs = {};
   const phase = async (name, fn) => {
@@ -212,9 +234,11 @@ async function main() {
       phasesMs[name] = Date.now() - t;
     }
   };
-  const run = { job: cfg.job, status: "RUNNING", dry_run: cfg.dryRun, busy_db: cfg.expectedDb ?? null, started_at: startedAt.toISOString(), counts: {}, error: null };
+  const run = { job: cfg.job, status: "RUNNING", dry_run: cfg.dryRun, busy_db: cfg.expectedDb ?? null, started_at: startedAt.toISOString(), changes: 0, counts: {}, error: null };
   const warnings = [];
   let store = null;
+  let conn = null;
+  let busy = null;
   console.log(`[sync] ${cfg.job} ${cfg.dryRun ? "DRY-RUN (local files only)" : "LIVE"} — PRICE_VERIFIED=${cfg.priceVerified} STOCK_VERIFIED=${cfg.stockVerified}`);
 
   try {
@@ -222,8 +246,16 @@ async function main() {
     if (!cfg.dryRun) assertServerSideKey(cfg);
     store = cfg.dryRun ? localStore : await createSupabaseStore(cfg);
 
+    conn = await phase("connect", async () => {
+      try {
+        return await connect();
+      } catch (err) {
+        throw classifyBusyError(err);
+      }
+    });
+    busy = createBusyReader({ exec: conn.exec, expectedDb: cfg.expectedDb });
     await phase("company_check_start", () => busy.checkCompany("company_check_start"));
-    const schema = await phase("schema_check", () => busy.checkSchema(JSON.parse(readFileSync(BASELINE_PATH, "utf8")).tables));
+    const schema = await phase("schema_check", () => busy.checkSchema(JSON.parse(readFileSync(cfg.baselinePath, "utf8")).tables));
     if (!schema.ok) {
       await writeJson(join(cfg.dataDir, "busy-schema-observed.json"), { captured_at: new Date().toISOString(), busy_db: cfg.expectedDb, tables: schema.observed });
       throw new SyncError("SCHEMA_CHANGED", `BUSY column fingerprint changed: ${schema.diffs.join("; ")}`);
@@ -237,7 +269,7 @@ async function main() {
         const exclusions = parseExclusions(JSON.parse(readFileSync(EXCLUSIONS_PATH, "utf8")));
         const lastOk = await store.loadLastSuccessfulItemCounts();
         const codeRows = await busy.pullItemCodes();
-        const plan = planItems(state, codeRows, cfg.job === "full", exclusions);
+        const plan = planItems(state, codeRows, cfg.job === "full", exclusions, cfg.priceVerified);
         const items = plan.fetchCodes.length ? await busy.pullItems(plan.fetchCodes) : [];
         for (const w of exclusionWarnings(exclusions, codeRows, items)) {
           warnings.push(w);
@@ -262,35 +294,61 @@ async function main() {
     if (cfg.job !== "items") {
       await phase("stock", async () => {
         const rows = await busy.pullStock();
-        toSave.stock = { rows, synced_at: new Date().toISOString(), visible: cfg.stockVerified };
-        run.counts.stock = summarizeStock(rows);
+        const changed = diffStock(state, rows, cfg.stockVerified, cfg.job !== "delta");
+        toSave.stock = { rows: changed, synced_at: new Date().toISOString(), visible: cfg.stockVerified };
+        run.counts.stock = { ...summarizeStock(rows), changed: changed.length };
       });
     }
 
-    await phase("company_check_before_save", () => busy.checkCompany("company_check_before_save"));
-    const saved = await phase("save", () => store.save(toSave));
-    run.counts.saved = { store: store.kind, item_upserts: toSave.upserts.length, flagged_missing: toSave.missingCodes.length, ...saved };
+    run.changes = toSave.upserts.length + toSave.missingCodes.length + (toSave.stock?.rows.length ?? 0);
+    if (run.changes > 0) {
+      await phase("company_check_before_save", () => busy.checkCompany("company_check_before_save"));
+      const saved = await phase("save", () => store.save(toSave));
+      run.counts.saved = { store: store.kind, item_upserts: toSave.upserts.length, flagged_missing: toSave.missingCodes.length, ...saved };
+    }
     run.status = "OK";
   } catch (err) {
     run.status = err instanceof SyncError ? err.status : "ERROR";
     run.error = err.message;
-    process.exitCode = 1;
+  } finally {
+    await conn?.close().catch(() => {});
   }
 
   const finishedAt = new Date();
   Object.assign(run, {
     finished_at: finishedAt.toISOString(),
     duration_ms: finishedAt - startedAt,
-    details: { phases_ms: phasesMs, busy_requests: busy.stats.requests, queries: busy.stats.timings, warnings: [...busy.stats.warnings, ...warnings] },
+    details: { phases_ms: phasesMs, busy_requests: busy?.stats.requests ?? 0, queries: busy?.stats.timings ?? [], warnings: [...(busy?.stats.warnings ?? []), ...warnings] },
   });
+  let previous = null;
   try {
-    await (store ?? localStore).recordRun(run);
+    previous = await (store ?? localStore).recordRun(run);
   } catch (err) {
     console.error(`[sync] could not record run in ${store?.kind}: ${err.message} — writing it locally instead`);
-    await localStore.recordRun(run);
+    previous = await localStore.recordRun(run).catch(() => null);
   }
+  run.previous_status = previous;
+  run.status_changed = previous !== run.status; // alert on transitions, not on every failed minute
   if (run.status === "OK" && !cfg.dryRun && cfg.healthcheckUrl) await pingHealthcheck(cfg.healthcheckUrl);
+  return run;
+}
+
+async function main() {
+  loadDotEnv();
+  let cfg;
+  try {
+    cfg = loadConfig(process.argv.slice(2));
+  } catch (err) {
+    console.error(err.message);
+    process.exitCode = 1;
+    return;
+  }
+  const run = await runSync(cfg);
   console.log(JSON.stringify(run, null, 2));
+  if (run.status !== "OK") {
+    console.error(`\n*** SYNC FAILED: ${run.status} ${run.error ?? ""}\n`);
+    process.exitCode = 1;
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) await main();

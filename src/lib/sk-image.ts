@@ -7,9 +7,18 @@ export const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const MAX_LONG_SIDE = 1600;
 export const JPEG_QUALITY = 0.8;
 
+// "manual" is the stored value for portal-added products (kept: Cloudinary folders and /parts/m<id> URLs use it).
 export type Source = "busy" | "manual";
+export const SOURCE_LABEL: Record<Source, string> = { busy: "BUSY", manual: "Portal" };
+
+// Portal roles live in the user's app_metadata.role (only the service role can set it): owner or staff.
+export type Role = "owner" | "staff";
+export const roleOf = (claims: { app_metadata?: Record<string, unknown> } | null | undefined): Role | null => {
+  const r = claims?.app_metadata?.role;
+  return r === "owner" || r === "staff" ? r : null;
+};
 export type Media = { id: number; source: Source; product_key: string; cloudinary_public_id: string; url: string; is_primary: boolean; sort_order: number };
-export type ManualProduct = { id: number; sku: string; name: string; category: string | null; price: number | null; stock: number | null; description: string | null; is_active: boolean };
+export type ManualProduct = { id: number; sku: string; name: string; display_name: string | null; category: string | null; price: number | null; stock: number | null; in_stock: boolean; busy_code: number | null; description: string | null; is_active: boolean };
 
 // Both keys are numeric ids as text (busy_code / products_manual.id), so one strict check covers both.
 export function isProductRef(source: unknown, key: unknown): source is Source {

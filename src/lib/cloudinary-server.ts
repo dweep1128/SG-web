@@ -1,5 +1,6 @@
 // Server-only Cloudinary signing + delete. Uses CLOUDINARY_API_SECRET, so never import this from a client component.
 import { createHash } from "node:crypto";
+import { MAX_LONG_SIDE } from "./sk-image";
 
 function env() {
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -17,11 +18,12 @@ function sign(params: Record<string, string | number>, secret: string): string {
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
-// Everything the browser needs to POST one file straight to Cloudinary. allowed_formats is signed, so Cloudinary
-// itself rejects anything that isn't jpg/png/webp.
+// Everything the browser needs to POST one file straight to Cloudinary. Every param is signed, so the browser can't
+// change them: allowed_formats rejects anything that isn't jpg/png/webp; the incoming transformation caps what is
+// stored at 1600 px / auto quality even if a client skips its own resize (upload bytes are capped by the Cloudinary plan).
 export function signUpload(folder: string) {
   const { cloudName, apiKey, apiSecret } = env();
-  const params = { allowed_formats: "jpg,png,webp", folder, timestamp: nowSeconds() };
+  const params = { allowed_formats: "jpg,png,webp", folder, timestamp: nowSeconds(), transformation: `c_limit,w_${MAX_LONG_SIDE},h_${MAX_LONG_SIDE},q_auto` };
   return { ...params, signature: sign(params, apiSecret), api_key: apiKey, cloud_name: cloudName };
 }
 

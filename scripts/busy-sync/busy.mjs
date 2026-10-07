@@ -1,13 +1,11 @@
-// BUSY side of the sync. READ ONLY: every request goes through scripts/busy-query.mjs (SC=1, SELECT/WITH only,
-// DB guard before each query, >= 1s between requests). This module adds the sync-specific checks on top:
-// company/FY classification, schema fingerprint, strict rowset validation, cost-column block, query timings.
+// BUSY side of the sync. READ ONLY: every statement goes through an exec() transport (sql.mjs: read-only login +
+// assertReadOnly). This module adds the sync-specific checks on top: company/FY guard, schema fingerprint, strict
+// row validation, cost-column block, query timings.
 import { createHash } from "node:crypto";
-import { assertExpectedDb, query } from "../busy-query.mjs";
 import { COST_COLUMN_PATTERN, ITEM_CODE_FIELDS, ITEM_FIELDS, STOCK_FIELDS } from "./mapping.mjs";
 
 export const ITEM_BATCH_SIZE = 500;
 export const SLOW_QUERY_MS = 15_000;
-export const MAX_QUERY_CHARS = 8_000; // longest length proven to work (docs/busy-schema-report.md §4)
 export const SCHEMA_TABLES = ["Folio1", "Master1", "MasterSupport", "Tran2"];
 
 export class SyncError extends Error {
@@ -17,7 +15,10 @@ export class SyncError extends Error {
   }
 }
 
-const FY_DB = /^(.+_db1)(\d{4})$/i; // BusyComp0003_db12026 → company "BusyComp0003_db1", year "2026"
+const FY_DB = /^(\w+_db1)(\d{4})$/i; // BusyComp0003_db12026 → company "BusyComp0003_db1", year "2026"
+// S.K. TRADERS is BUSY company 0003. Pinned in code, not only in env: a BUSY_EXPECTED_DB naming any other company
+// (Comp0001 is a different business) is refused before anything is read. Only the FY suffix may change.
+export const EXPECTED_COMPANY_DB = /^BusyComp0003_db1\d{4}$/;
 
 export function isSameCompanyOtherYear(actual, expected) {
   const a = FY_DB.exec(actual ?? "");
@@ -25,28 +26,24 @@ export function isSameCompanyOtherYear(actual, expected) {
   return Boolean(a && e && a[1].toLowerCase() === e[1].toLowerCase() && a[2] !== e[2]);
 }
 
-// busy-query.mjs reports guard failures as one message; this turns it into a run status.
-// Its exact format is pinned by check.mjs so a wording change there fails loudly instead of misclassifying.
-const GUARD_MESSAGE = /^DB guard failed: Result=(\S*) Description=(.*) DB_NAME\(\)=(\S*) expected=(\S*)$/s;
-const NETWORK_ERROR = /TIMEOUT|ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ETIMEDOUT|socket hang up/i;
-const COMPANY_CLOSED = /open a company/i;
+/** Databases of the SAME company with a later financial year than the one we sync. */
+export function newerYears(names, expected) {
+  const e = FY_DB.exec(expected);
+  return names.filter((n) => isSameCompanyOtherYear(n, expected) && FY_DB.exec(n)[2] > e[2]);
+}
+
+// mssql error codes: ELOGIN = bad login / database not accessible, ETIMEOUT/ESOCKET/EINSTLOOKUP = network.
+const NETWORK_ERROR = /ETIMEOUT|ESOCKET|EINSTLOOKUP|ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ETIMEDOUT|ECONNCLOSED/;
 
 export function classifyBusyError(err) {
+  if (err instanceof SyncError) return err;
   const msg = String(err?.message ?? err);
-  const m = GUARD_MESSAGE.exec(msg);
-  if (m) {
-    const [, result, description, actual, expected] = m;
-    if (COMPANY_CLOSED.test(description)) return new SyncError("BUSY_CLOSED", `BUSY has no company open: ${description}`);
-    if (result !== "T") return new SyncError("BUSY_ERROR", `DB check failed: Result=${result} ${description}`);
-    if (isSameCompanyOtherYear(actual, expected)) {
-      return new SyncError("NEW_FY_DETECTED", `BUSY is on ${actual}, sync expects ${expected}. Not switching automatically.`);
-    }
-    return new SyncError("WRONG_DATABASE", `BUSY is on ${actual}, sync expects ${expected}.`);
-  }
-  if (COMPANY_CLOSED.test(msg)) return new SyncError("BUSY_CLOSED", msg);
+  if (err?.status === "CONFIG_ERROR") return new SyncError("CONFIG_ERROR", msg);
   if (msg.startsWith("Refusing:")) return new SyncError("QUERY_REFUSED", msg);
-  if (NETWORK_ERROR.test(msg) || err?.code) return new SyncError("BUSY_UNREACHABLE", msg);
-  return new SyncError("BUSY_ERROR", msg);
+  if (/Cannot open database/i.test(msg)) return new SyncError("WRONG_DATABASE", msg); // configured DB missing / no access
+  if (err?.code === "ELOGIN") return new SyncError("BUSY_LOGIN_FAILED", msg);
+  if (NETWORK_ERROR.test(`${err?.code} ${msg}`)) return new SyncError("BUSY_UNREACHABLE", msg);
+  return new SyncError("BUSY_QUERY_FAILED", msg);
 }
 
 export function hashColumns(lines) {
@@ -85,24 +82,19 @@ const SCHEMA_QUERY =
   ` ORDER BY TABLE_NAME, ORDINAL_POSITION`;
 
 /**
- * Strict check of one SC=1 response. Anything short of a complete, fully parsed rowset with exactly the
- * expected columns and value types throws PARSE_FAILED, and the caller discards the whole run.
- * Returns rows keyed by mapping field name. Never includes values in error text.
+ * Strict check of one result set. Anything short of exactly the expected columns (names and order) and value types
+ * throws PARSE_FAILED, and the caller discards the whole run. Returns rows keyed by mapping field name.
+ * Never includes values in error text.
  */
-export function validateRowset(r, fields, label) {
+export function validateRows({ rows, columns }, fields, label) {
   const fail = (why) => {
     throw new SyncError("PARSE_FAILED", `${label}: ${why}`);
   };
-  if (r.http !== 200) fail(`HTTP ${r.http}`);
-  const body = String(r.body ?? "").trim();
-  if (!body.startsWith("<xml") || !body.endsWith("</xml>")) fail("body is not a complete ADO rowset document");
-  const rowTags = body.match(/<z:row\b/g)?.length ?? 0;
-  if (rowTags !== r.rows.length) fail(`${rowTags} <z:row> tags but ${r.rows.length} parsed rows`);
-  const got = r.columns.map((c) => c.name).join(",");
+  const got = columns.join(",");
   const want = fields.map((f) => f.alias).join(",");
   if (got !== want) fail(`columns [${got}] differ from expected [${want}]`);
 
-  return r.rows.map((row, n) => {
+  return rows.map((row, n) => {
     const out = {};
     for (const f of fields) {
       const v = row[f.alias];
@@ -133,8 +125,8 @@ function assertUniqueCodes(rows, label) {
   }
 }
 
-/** Reader bound to one run: counts requests, records timings and warnings. */
-export function createBusyReader({ log = console.log } = {}) {
+/** Reader bound to one run and one connection: counts requests, records timings and warnings. */
+export function createBusyReader({ exec, expectedDb, log = console.log }) {
   const stats = { requests: 0, timings: [], warnings: [] };
 
   const warn = (msg) => {
@@ -142,42 +134,47 @@ export function createBusyReader({ log = console.log } = {}) {
     log(`[busy] WARN ${msg}`);
   };
 
-  async function run(label, sql, fields) {
+  async function send(label, sql) {
     if (COST_COLUMN_PATTERN.test(sql)) throw new SyncError("COST_FIELD_BLOCKED", `${label}: query references a cost/purchase column`);
-    if (sql.length > MAX_QUERY_CHARS) throw new SyncError("QUERY_TOO_LONG", `${label}: ${sql.length} chars > ${MAX_QUERY_CHARS}`);
-    const started = Date.now();
-    let r;
+    stats.requests++;
     try {
-      r = await query(sql); // DB guard request + the query itself
+      return await exec(sql);
     } catch (err) {
-      stats.requests += 2; // upper bound: guard and/or query may have been sent
       throw classifyBusyError(err);
     }
-    stats.requests += 2;
-    stats.timings.push({ label, ms: r.ms, total_ms: Date.now() - started, rows: r.rows.length, bytes: r.bytes });
-    log(`[busy] ${label}: ${r.rows.length} rows, ${r.bytes} B, ${r.ms} ms`);
+  }
+
+  async function run(label, sql, fields) {
+    const r = await send(label, sql);
+    stats.timings.push({ label, ms: r.ms, rows: r.rows.length });
+    log(`[busy] ${label}: ${r.rows.length} rows, ${r.ms} ms`);
     if (r.ms > SLOW_QUERY_MS) warn(`${label} took ${r.ms} ms (> ${SLOW_QUERY_MS} ms)`);
-    if (r.result !== "T") {
-      const desc = r.description ?? "(no description)";
-      throw new SyncError(COMPANY_CLOSED.test(desc) ? "BUSY_CLOSED" : "BUSY_QUERY_FAILED", `${label}: Result=${r.result} ${desc}`);
-    }
-    return validateRowset(r, fields, label);
+    return validateRows(r, fields, label);
   }
 
   return {
     stats,
 
+    /**
+     * The company guard, run at the start and again right before saving. Refuses unless DB_NAME() is exactly
+     * BUSY_EXPECTED_DB (so Comp0001 or any other company never reaches the site), and stops if BUSY has moved on to
+     * a later financial year of the same company (the pinned DB would silently freeze).
+     */
     async checkCompany(label) {
+      if (!FY_DB.test(expectedDb ?? "")) throw new SyncError("CONFIG_ERROR", `BUSY_EXPECTED_DB must look like BusyComp0003_db12026, got "${expectedDb}".`);
+      if (!EXPECTED_COMPANY_DB.test(expectedDb)) throw new SyncError("WRONG_DATABASE", `BUSY_EXPECTED_DB=${expectedDb} is not S.K. TRADERS (BusyComp0003_db1YYYY). Refusing to sync another company.`);
       const started = Date.now();
-      try {
-        await assertExpectedDb();
-      } catch (err) {
-        throw classifyBusyError(err);
-      } finally {
-        stats.requests += 1;
+      const [{ db: actual } = {}] = (await send(label, "SELECT DB_NAME() AS db")).rows;
+      if (actual !== expectedDb) {
+        if (isSameCompanyOtherYear(actual, expectedDb)) throw new SyncError("NEW_FY_DETECTED", `Connected to ${actual}, sync expects ${expectedDb}. Not switching automatically.`);
+        throw new SyncError("WRONG_DATABASE", `Connected to ${actual}, sync expects ${expectedDb}. Refusing to sync another company.`);
       }
+      const prefix = FY_DB.exec(expectedDb)[1].replace(/_/g, "[_]"); // LIKE treats _ as a wildcard
+      const { rows } = await send(label, `SELECT name FROM sys.databases WHERE name LIKE '${prefix}%'`);
+      const later = newerYears(rows.map((r) => r.name), expectedDb);
+      if (later.length) throw new SyncError("NEW_FY_DETECTED", `BUSY has a later financial year (${later.join(", ")}); sync is pinned to ${expectedDb}. Update BUSY_EXPECTED_DB.`);
       stats.timings.push({ label, ms: Date.now() - started });
-      log(`[busy] ${label}: OK`);
+      log(`[busy] ${label}: OK (${actual})`);
     },
 
     /** Compares column fingerprints with the baseline. Column names are hashed, never returned or printed. */

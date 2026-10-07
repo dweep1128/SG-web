@@ -127,3 +127,10 @@ body:has(.sk) > .site-header, body:has(.sk) > .site-footer { display: none; }
   border: 0; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; cursor: pointer;
 }
 .sk-sync { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 0.85rem; color: var(--muted); }
+
+/* ─── Product details (BUSY presentation form / portal product actions) ─── */
+.sk-details { margin-top: 24px; }
+.sk-note { font-size: 0.875rem; color: var(--muted); margin: 8px 0 16px; }
+.sk-nav__role { font-weight: 500; opacity: 0.75; text-transform: capitalize; }
+.sk-dn { margin-bottom: 12px; }
+.sk-dn .input { min-height: 48px; font-size: 1rem; } /* 16px: iOS Safari zooms smaller inputs on focus */
