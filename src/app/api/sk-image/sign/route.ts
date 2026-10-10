@@ -26,6 +26,8 @@ export async function POST(req: Request) {
   try {
     return Response.json(signUpload(`sk-image/${source}/${key}`));
   } catch (e) {
-    return serverError("Starting the upload", e);
+    // Staff-only route, so the real reason (e.g. which Cloudinary env var is missing) is safe and far more useful than a generic message.
+    console.error("[sk-image] Starting the upload:", e);
+    return Response.json({ error: `Starting the upload failed: ${e instanceof Error ? e.message : "unknown error"}` }, { status: 500 });
   }
 }

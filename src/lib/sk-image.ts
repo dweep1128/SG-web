@@ -56,10 +56,29 @@ async function errorMessage(res: Response, fallback: string): Promise<string> {
   return json?.error?.message ?? json?.error ?? fallback;
 }
 
+const SIGN_RETRY_DELAY_MS = 800;
+
+// One automatic retry for the start step, on network errors and 5xx only (a 4xx won't fix itself).
+async function signWithRetry(source: Source, key: string): Promise<Response> {
+  const attempt = () => fetch("/api/sk-image/sign", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source, key }) });
+  let res: Response | undefined;
+  for (let i = 0; i < 2 && !res?.ok; i++) {
+    if (i) await new Promise((r) => setTimeout(r, SIGN_RETRY_DELAY_MS));
+    res = await attempt().catch((e) => { console.error("[sk-image] sign request failed:", e); return undefined; });
+    if (res && res.status < 500) break;
+  }
+  if (!res) throw new Error("Could not reach the server. Check your connection.");
+  if (!res.ok) {
+    const msg = await errorMessage(res, "Could not start upload");
+    console.error("[sk-image] sign failed:", res.status, msg);
+    throw new Error(msg);
+  }
+  return res;
+}
+
 // Step 1: signed direct upload to Cloudinary. Kept separate from step 2 so a failed DB save retries without re-uploading.
 export async function uploadToCloudinary(source: Source, key: string, blob: Blob): Promise<Uploaded> {
-  const signRes = await fetch("/api/sk-image/sign", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ source, key }) });
-  if (!signRes.ok) throw new Error(await errorMessage(signRes, "Could not start upload"));
+  const signRes = await signWithRetry(source, key);
   const { cloud_name, ...fields } = (await signRes.json()) as Record<string, string>;
   const form = new FormData();
   form.append("file", blob, "photo.jpg");
