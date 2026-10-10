@@ -26,7 +26,7 @@ function parse(fd: FormData): Row | string {
   const busyCode = num("busy_code");
   if (!name || name.length > MAX_NAME) return `Name is required (max ${MAX_NAME} characters).`;
   if (displayName.length > MAX_NAME) return `Display name: max ${MAX_NAME} characters.`;
-  if (!sku || sku.length > MAX_SKU) return `SKU is required (max ${MAX_SKU} characters).`;
+  if (sku.length > MAX_SKU) return `SKU: max ${MAX_SKU} characters.`; // blank is fine: the database generates one (supabase/manual-sku-auto.sql)
   if (price != null && !(Number.isFinite(price) && price >= 0)) return "Price must be 0 or more.";
   if (stock != null && !(Number.isInteger(stock) && stock >= 0)) return "Stock must be a whole number, 0 or more.";
   if (busyCode != null && !(Number.isSafeInteger(busyCode) && busyCode > 0)) return "BUSY code must be a whole number.";
@@ -76,7 +76,7 @@ export function ProductForm({ product }: { product: ManualProduct | null }) {
     <form className="sk-form" onSubmit={onSubmit}>
       <Input id="pf-name" name="name" label="Name" required maxLength={MAX_NAME} defaultValue={product?.name} autoComplete="off" />
       <Input id="pf-display" name="display_name" label="Display name" maxLength={MAX_NAME} defaultValue={product?.display_name ?? ""} autoComplete="off" hint="Optional. Shown on the website instead of the name." />
-      <Input id="pf-sku" name="sku" label="SKU" required maxLength={MAX_SKU} defaultValue={product?.sku} autoComplete="off" autoCapitalize="characters" hint="Shown as the item code on the website" />
+      <Input id="pf-sku" name="sku" label="SKU" maxLength={MAX_SKU} defaultValue={product?.sku} autoComplete="off" autoCapitalize="characters" hint="Your own code for this item. Leave blank to auto-generate." />
       <div className="field">
         <label className="field__label" htmlFor="pf-category">Category</label>
         <select id="pf-category" name="category" className="input" defaultValue={product?.category ?? ""}>
