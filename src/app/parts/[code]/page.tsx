@@ -52,6 +52,8 @@ export default async function PartPage({ params }: Props) {
   const rel = related(all, part);
   const withGst = priceWithGst(part);
   const wa = whatsappLink(`Hello ${SITE.name}, I'd like to ask about:\n${part.name}\nCode ${part.sku}`);
+  // Status label only (never a quantity): the customer fills in how many they want.
+  const order = whatsappLink(`Hello ${SITE.name}, I want to order this:\n${part.name}\nCode ${part.sku}\nStock shown: ${STOCK_LABEL[part.stock]}\nQuantity: `);
   const quotePart = { code: part.code, sku: part.sku, name: part.name, price: part.price, gst: part.gst, unit: part.unit };
 
   return (
@@ -112,7 +114,8 @@ export default async function PartPage({ params }: Props) {
           {part.source === "busy" && <StockUpdated />}
 
           <AddToQuote part={quotePart} />
-          <ExternalButton href={wa} variant="whatsapp" block>Ask about this part on WhatsApp</ExternalButton>
+          <ExternalButton href={order} variant="whatsapp" block>Order on WhatsApp</ExternalButton>
+          <ExternalButton href={wa} variant="secondary" block>Ask about this part on WhatsApp</ExternalButton>
         </div>
       </div>
 

@@ -26,6 +26,9 @@ export function SiteFooter() {
         <span>© {new Date().getFullYear()} {SITE.name}</span>
         <span>Prices and stock are indicative; confirmed on your quote.</span>
       </div>
+      <p className="shell site-footer__credit">
+        Website by <a href="https://dweep.me" target="_blank" rel="noopener noreferrer">Dweep Shishodia</a>
+      </p>
     </footer>
   );
 }
